@@ -8,6 +8,7 @@ __author__ = "aldur"
 import matasano.util
 import matasano.stats
 import matasano.blocks
+import matasano.oracle
 
 import base64
 
@@ -126,5 +127,47 @@ def eight():
                 print("Likely to be ECB:\n{}".format(line.decode("ascii")))
 
 
+def nine():
+    """http://cryptopals.com/sets/2/challenges/9/"""
+    b = "YELLOW SUBMARINE".encode("ascii")
+    size = 20
+    print("PKCS padding: {}".format(matasano.blocks.pkcs(b, size)))
+
+
+def ten():
+    """http://cryptopals.com/sets/2/challenges/10/"""
+    with open("input/10.txt", "rb") as f:
+        b = base64.b64decode(f.read())
+        key = "YELLOW SUBMARINE".encode("ascii")
+        print(
+            "Decrypted:\n{}".format(
+                matasano.blocks.aes_cbc(key, b, decrypt=True).decode("ascii")
+            )
+        )
+
+
+def eleven():
+    """http://cryptopals.com/sets/2/challenges/11/"""
+    oracle = matasano.oracle.aes_ecb_cbc
+
+    """
+    Pass to the oracle something that,
+    even after the random adding,
+    is smaller than 4 blocks and is all 0s.
+    In this way we'll have the two middle blocks
+    always full of 0s. ECB is stateless, so they
+    will be equal.
+    If they're not, then it's CBC.
+    """
+    b = b"\x00" * ((16 * 4) - 10)
+    o = oracle(b)
+
+    ecb = matasano.blocks.any_equal_block(o)
+    print(
+        "Oracle used: {}.".format(
+            "ECB" if ecb else "CBC"
+        )
+    )
+
 if __name__ == '__main__':
-    eight()
+    eleven()

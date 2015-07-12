@@ -40,6 +40,34 @@ class BlocksTestCase(unittest.TestCase):
             l.decode("ascii")
         )
 
+    def test_pkcs(self):
+        b = "YELLOW SUBMARINE".encode("ascii")
+        size = 20
+        padded = matasano.blocks.pkcs(b, size)
+
+        self.assertEqual(len(padded), size)
+        self.assertEqual(padded, b + b"\x04" * 4)
+
+    def test_aes_ecb(self):
+        f = matasano.blocks.aes_ecb
+        key = "YELLOW SUBMARINE".encode("ascii")
+        b = "00foobarfoobar00".encode("ascii")
+
+        self.assertEqual(
+            f(key, f(key, b), decrypt=True),
+            b
+        )
+
+    def test_aes_cbc(self):
+        f = matasano.blocks.aes_cbc
+        key = "YELLOW SUBMARINE".encode("ascii")
+        b = "00foobarfoobar00".encode("ascii")
+
+        self.assertEqual(
+            f(key, f(key, b), decrypt=True),
+            b
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
