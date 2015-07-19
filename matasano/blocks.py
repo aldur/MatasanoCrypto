@@ -5,7 +5,6 @@ __author__ = 'aldur'
 
 """Handle operations supporting blocks here."""
 
-import random
 import matasano.util
 import matasano.oracle
 from Crypto.Cipher import AES
@@ -26,6 +25,23 @@ def split_blocks(b: bytes, k_len: int) -> tuple:
             b[j] for j in range(i, len(b), k_len)
         ) for i in range(0, k_len)
     )
+
+
+def pad_with_buffer(b: bytes, pad: bytes) -> bytes:
+    """
+    Get the bytes and pad them with an unknown string.
+
+    :param b: The buffer to be padded.
+    :param pad: The padding buffer.
+    :return: b || pad, padded again to be a multiple of sixteen.
+    """
+    assert b
+    assert pad
+
+    b += pad
+    b = pkcs(b, 16)
+
+    return b
 
 
 def pkcs(b: bytes, size: int) -> bytes:
