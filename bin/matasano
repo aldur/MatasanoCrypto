@@ -9,6 +9,7 @@ import matasano.util
 import matasano.stats
 import matasano.blocks
 import matasano.oracle
+import matasano.attacker
 
 import base64
 
@@ -148,7 +149,7 @@ def ten():
 
 def eleven():
     """http://cryptopals.com/sets/2/challenges/11/"""
-    oracle = matasano.oracle.aes_ecb_cbc
+    oracle = matasano.oracle.OracleAesEcbCbc()
 
     """
     Pass to the oracle something that,
@@ -160,14 +161,32 @@ def eleven():
     If they're not, then it's CBC.
     """
     b = b"\x00" * ((16 * 4) - 10)
-    o = oracle(b)
+    o = oracle.challenge(b)
 
     ecb = matasano.blocks.any_equal_block(o)
     print(
-        "Oracle used: {}.".format(
+        "Guess - Oracle used: {}.".format(
             "ECB" if ecb else "CBC"
         )
     )
+    print(
+        "Guess is {}.".format(
+            "correct" if oracle.guess(ecb) else "wrong"
+        )
+    )
+
+
+def twelve():
+    """http://cryptopals.com/sets/2/challenges/12/"""
+    oracle = matasano.oracle.OracleByteAtATimeEcb()
+    attacker = matasano.attacker.AttackerByteAtATimeEcb(oracle)
+    attack = attacker.attack()
+    print("Guessed hidden string is: {}".format(
+        attacker.unhidden_string.decode("ascii")
+    ))
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
 
 if __name__ == '__main__':
-    eleven()
+    twelve()
