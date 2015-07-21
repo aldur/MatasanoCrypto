@@ -62,6 +62,18 @@ class UtilTestCase(unittest.TestCase):
                               "c692b20283165286326302e27282f")
         self.assertEqual(truth, matasano.util.repeating_xor(lines, key))
 
+    def test_key_value_parsing(self):
+        kv = "foo=bar&baz=qux&zap=zazzle"
+        truth = {
+            "foo": "bar",
+            "baz": "qux",
+            "zap": "zazzle",
+        }
+        self.assertEqual(
+            truth,
+            matasano.util.key_value_parsing(kv)
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

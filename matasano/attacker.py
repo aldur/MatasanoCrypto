@@ -31,6 +31,78 @@ class Attacker(object):
         return False
 
 
+class AttackerProfileForUser(Attacker):
+    """
+    An admin-user forger.
+
+    :param oracle: An instance of OracleProfileForUser.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleProfileForUser):
+        super().__init__(oracle)
+
+        """
+        A block, whose decryption ends perfectly with the last "="
+        of the kv string.
+        """
+        self._base_user = None
+        self._role = None
+
+    def get_base_user_profile(self):
+        """
+        Ask the oracle for a specific profile, such that it is of the form:
+        user=...&uid=...&role= || ...
+        As you can see, we want the role to be isolated on a single block.
+
+        """
+        email_suffix = "@foo.com"
+        fixed = sum(
+            len(s) for s
+            in (
+                "email", "uid", "role",  # The keys of the string
+                "&", "&", "=", "=", "=",  # The meta characters
+                "1",  # The user ID (1-9 is fine)
+            )
+        )
+        email = "a" * (32 - fixed - len(email_suffix)) + email_suffix
+        assert len(email) + fixed == 32
+        email = email.encode("ascii")
+        self._base_user = self.oracle.experiment(email)[0:32]
+
+    def get_role_block(self):
+        """
+        Ask the oracle for a block of the form:
+        ... || admin | padding || ...
+
+        We can provide the oracle only emails.
+        Let's build an ad-hoc trap.
+        """
+        fixed = sum(
+            len(s) for s
+            in (
+                "email",  # The keys of the string
+                "=",  # The meta characters
+            )
+        )
+        email = b"a" * (16 - fixed - len(b"@")) + b"@"
+        assert len(email) + fixed == 16
+        email += matasano.blocks.pkcs(b"admin", 16)
+        assert len(email) + fixed == 32
+        email += b".com"
+        self._role = self.oracle.experiment(email)[16:32]
+
+    def attack(self) -> bool:
+        """
+        Perform the attack.
+        Get the base block, add the role, and ask for result to the Oracle.
+        """
+        assert self._base_user
+        assert self._role
+
+        user = self._base_user + self._role
+        return self.oracle.guess(user)
+
+
 class AttackerByteAtATimeEcb(Attacker):
     """
     The attacker against the One Byte at a Time Ecb Oracle.

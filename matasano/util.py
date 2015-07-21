@@ -64,3 +64,32 @@ def repeating_xor(b: bytes, key: bytes) -> bytes:
     )
 
 
+def key_value_parsing(s: str) -> dict:
+    """
+    key=value to dictionary parsing.
+    Given a string of the form k_1=v_1&k_2=v_2,
+    convert it to a dictionary.
+    Best effort, skip malformed strings.
+
+    :param s: The input string.
+    :return: A dictionary from the input string.
+    """
+    assert s
+    return {
+        kv.split("=")[0]: kv.split("=")[1]
+        for kv in s.split("&")
+        if kv.count("=")
+        }
+
+
+def dictionary_to_kv(d: dict) -> str:
+    """
+    Given a dictionary, encode it in key value format.
+
+    :param d: The dictionary to be encoded.
+    :return: The encoded key-value version of the dictionary.
+    """
+    assert d
+    return "&".join(
+        "=".join((str(k), str(v))) for k, v in d.items()
+    )

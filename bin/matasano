@@ -188,5 +188,16 @@ def twelve():
         "success" if attack else "failure"
     ))
 
+
+def thirteen():
+    """http://cryptopals.com/sets/2/challenges/13/"""
+    oracle = matasano.oracle.OracleProfileForUser()
+    attacker = matasano.attacker.AttackerProfileForUser(oracle)
+    attacker.get_base_user_profile()
+    attacker.get_role_block()
+    print("The attack result was: {}.".format(
+        "success" if attacker.attack() else "failure"
+    ))
+
 if __name__ == '__main__':
-    twelve()
+    thirteen()

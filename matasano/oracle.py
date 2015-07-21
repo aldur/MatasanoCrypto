@@ -10,8 +10,12 @@ Random generations, games, and so on.
 
 import random
 import base64
-import matasano.blocks
 import abc
+import re
+import collections
+
+import matasano.blocks
+import matasano.util
 
 
 def random_aes_key() -> bytes:
@@ -142,6 +146,91 @@ class OracleAesEcbCbc(Oracle):
         return super().experiment(args)
 
 
+class OracleProfileForUser(Oracle):
+    """
+    An encryption oracle that provide information about a user.
+    Specifically, given an email address, it produces data.
+    Then encode it as key-values, and finally encrypts it.
+    """
+
+    """Possible roles for each user."""
+    _roles = ("admin", "user")
+
+    def __init__(self):
+        super(Oracle, self).__init__()
+        self._key = random_aes_key()
+        self._last_uid = -1
+        self._has_guessed = False
+
+    def _build_profile(self, mail: str) -> str:
+        """
+        Build the profile dictionary for a user.
+        The dictionary is deterministic.
+        The role will always be user, and the IDs follow a monotonic growing function.
+
+        :param mail: The email of the users. Meta characters "&" and "=" will be removed.
+        :return:
+        """
+        assert mail
+        assert re.match(
+            #  This can't be as strong as I'd like.
+            r"^[^@\.]+@[^@\.]+\.[^@\.]{2,4}$",
+            mail
+        ), "Specified mail is invalid."
+
+        mail = mail.strip("&=")
+        self._last_uid += 1
+        d = collections.OrderedDict()
+        d["email"] = mail
+        d["uid"] = self._last_uid
+        d["role"] = OracleProfileForUser._roles[1]
+
+        return matasano.util.dictionary_to_kv(
+            collections.OrderedDict(d)
+        )
+
+    def experiment(self, mail: bytes) -> bytes:
+        """
+        Build a profile from the mail, encode it and encrypt it by using AES ECB.
+        Then return it.
+
+        :param mail: The mail whose profile must be created.
+        """
+        profile = self._build_profile(mail.decode("ascii"))
+        return matasano.blocks.aes_ecb(
+            self._key,
+            matasano.blocks.pkcs(profile.encode("ascii"), 16)
+        )
+
+    def guess(self, guess: bytes) -> bool:
+        """
+        Check whether the attacker has forged an admin user.
+
+        :param guess: An encoded and encrypted user profile.
+        :raise CheatingException: If called more than once.
+        :return: True on admin user forging.
+        """
+        if self._has_guessed:
+            raise CheatingException("Attacker can only guess once!")
+        self._has_guessed = True
+
+        encoded_profile = matasano.blocks.aes_ecb(
+            self._key,
+            guess,
+            decrypt=True
+        ).decode("ascii")
+        profile = matasano.util.key_value_parsing(encoded_profile)
+        return profile["role"].strip() == OracleProfileForUser._roles[0]
+
+    def challenge(self, *args: bytes) -> bytes:
+        """
+        This oracle doesn't provide a challenge.
+
+        :param args: An iterable of bytes.
+        """
+        return super().challenge(args)
+
+
 class OracleByteAtATimeEcb(Oracle):
     """
     An encryption oracle that encrypts each block with the
@@ -186,6 +275,7 @@ class OracleByteAtATimeEcb(Oracle):
         Compare the attacker's guess against the unknown string.
 
         :param guess: The attacker's guess.
+        :raise CheatingException: If called more than once.
         :return: True if the guess is correct.
         """
         assert guess
