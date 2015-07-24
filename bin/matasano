@@ -12,6 +12,35 @@ import matasano.oracle
 import matasano.attacker
 
 import base64
+import argparse
+
+
+_num2words = {
+    1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five',
+    6: 'six', 7: 'seven', 8: 'eight', 9: 'nine', 10: 'ten',
+    11: 'eleven', 12: 'twelve', 13: 'thirteen', 14: 'fourteen',
+    15: 'fifteen', 16: 'sixteen', 17: 'seventeen', 18: 'eighteen',
+    19: 'nineteen', 20: 'twenty', 30: 'thirty', 40: 'forty',
+    50: 'fifty', 60: 'sixty', 70: 'seventy', 80: 'eighty',
+    90: 'ninety', 0: 'zero'
+}
+
+
+def _number_to_words(n: int) -> str:
+    """
+    Given a number, convert it to respective words.
+
+    :param n: Number to be converted. Must be 0 <= n < 100
+    :return: The number convert to its word representation.
+    """
+    assert 0 <= n < 100
+    try:
+        return _num2words[n]
+    except KeyError:
+        try:
+            return _num2words[n - n % 10] + _num2words[n % 10]
+        except KeyError:
+            raise Exception('Number out of range')
 
 
 def one():
@@ -181,7 +210,7 @@ def twelve():
     oracle = matasano.oracle.OracleByteAtATimeEcb()
     attacker = matasano.attacker.AttackerByteAtATimeEcb(oracle)
     attack = attacker.attack()
-    print("Guessed hidden string is: {}".format(
+    print("Guessed hidden string is:\n{}".format(
         attacker.unhidden_string.decode("ascii")
     ))
     print("The attack results was: {}.".format(
@@ -199,5 +228,56 @@ def thirteen():
         "success" if attacker.attack() else "failure"
     ))
 
+
+def fourteen():
+    """http://cryptopals.com/sets/2/challenges/14/"""
+    oracle = matasano.oracle.OracleHarderByteAtATimeEcb()
+    attacker = matasano.attacker.AttackerHarderByteAtATimeEcb(oracle)
+    attacker.discover_block_size()
+    print("Prefix len: {}.".format(
+        attacker.discover_fixed_string_len())
+    )
+
+    attack = attacker.attack()
+
+    print("Guessed hidden string is:\n{}".format(
+        attacker.unhidden_string.decode("ascii")
+    ))
+    # print("The attack results was: {}.".format(
+    #     "success" if attack else "failure"
+    # ))
+
+
+def _create_parser() -> argparse.ArgumentParser:
+    """
+    Create the command line argument parser.
+
+    :return: The command line argument parser for this module.
+    """
+    parser = argparse.ArgumentParser(
+        description='Matasano Crypto-Challenge solver.'
+    )
+
+    parser.add_argument(
+        'problem_number',
+        metavar='problem_number',
+        type=int,
+        help='the number of the problem to be solved'
+    )
+
+    return parser
+
+
 if __name__ == '__main__':
-    thirteen()
+    command_line_parser = _create_parser()
+    args = vars(command_line_parser.parse_args())
+
+    problem_number = args['problem_number']
+    assert 1 <= problem_number <= 56
+
+    problem = locals().get(_number_to_words(problem_number), None)
+    assert problem is not None, \
+        "Sorry, not yet implemented."
+
+    assert callable(problem)
+    problem()
