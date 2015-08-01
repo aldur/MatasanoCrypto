@@ -10,6 +10,14 @@ import matasano.oracle
 from Crypto.Cipher import AES
 
 
+class BadPaddingException(Exception):
+    """
+    Throw this exception while detecting that a buffer
+    provides an invalid padding.
+    """
+    pass
+
+
 def ith_byte_block(block_size: int, i: int) -> int:
     """
     Return the block to which the byte at index i belongs.
@@ -109,13 +117,12 @@ def pkcs(b: bytes, size: int) -> bytes:
 def un_pkcs(b: bytes) -> bytes:
     """
     PKCS#7 un_padding.
-    Remove padding from the bytes (if any).
-    This function is best effort.
-    If padding is invalid, or absent,
-    the input buffer will be returned as it is.
+    Remove padding from the bytes.
+    If padding is invalid, throws an exception.
 
-    :param b: An eventually padded buffer of bytes.
+    :param b: A padded buffer of bytes.
     :return: The buffer without padding.
+    :raises: BadPaddingException
     """
     b = bytearray(b)
     padding = b[-1]
@@ -124,7 +131,7 @@ def un_pkcs(b: bytes) -> bytes:
 
     for i in range(-padding, 0):
         if b[i] != padding:
-            return bytes(b)
+            raise BadPaddingException
 
     return bytes(b[:-padding])
 

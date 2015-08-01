@@ -67,6 +67,24 @@ class BlocksTestCase(unittest.TestCase):
         un_padded = matasano.blocks.un_pkcs(padded)
         self.assertEqual(b, un_padded)
 
+        padded = b"ICE ICE BABY\x04\x04\x04\x04"
+        un_padded = matasano.blocks.un_pkcs(padded)
+        self.assertEqual(b"ICE ICE BABY", un_padded)
+
+        padded = b"ICE ICE BABY\x05\x05\x05\x05"
+        self.assertRaises(
+            matasano.blocks.BadPaddingException,
+            matasano.blocks.un_pkcs,
+            padded
+        )
+
+        padded = b"ICE ICE BABY\x01\x02\x03\x04"
+        self.assertRaises(
+            matasano.blocks.BadPaddingException,
+            matasano.blocks.un_pkcs,
+            padded
+        )
+
     def test_aes_ecb(self):
         f = matasano.blocks.aes_ecb
         key = "YELLOW SUBMARINE".encode("ascii")
