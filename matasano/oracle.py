@@ -305,6 +305,40 @@ class OracleByteAtATimeEcb(Oracle):
         )
 
 
+class OracleHarderByteAtATimeEcb(OracleByteAtATimeEcb):
+    """
+    Same as OracleByteAtATimeEcb, but prefix the user string with
+    a fixed, randomly generated one.
+    """
+
+    def __init__(self):
+        super().__init__()
+        """
+        The fixed string prefix.
+        """
+        self._prefix = random_bytes_random_range(1, 32)
+
+    def experiment(self, *args: bytes) -> bytes:
+        """
+        Return an encryption of the first block of args,
+        prefixed with the static random string and
+        padded with the fixed unknown string.
+        :param args: An iterable of buffers to be encrypted.
+        :return: An encryption of the first block.
+        """
+        assert args
+        assert args[0]
+
+        b = matasano.blocks.pad_with_buffer(
+            self._prefix + args[0],
+            self._unknown_string
+        )
+        return matasano.blocks.aes_ecb(
+            self._consistent_key,
+            b
+        )
+
+
 def random_bytes_random_range(low: int, high: int) -> bytes:
     """
     Generate low to high random bytes.

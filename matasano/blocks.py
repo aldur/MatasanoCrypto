@@ -10,6 +10,42 @@ import matasano.oracle
 from Crypto.Cipher import AES
 
 
+def ith_byte_block(block_size: int, i: int) -> int:
+    """
+    Return the block to which the byte at index i belongs.
+    :param block_size: The block size.
+    :param i: The index of the interesting byte.
+    :return: The index of the block to which the byte at index i belongs.
+    """
+    assert block_size > 0
+    assert i >= 0
+    return i // block_size
+
+
+def bytes_to_block(block_size: int, i: int) -> slice:
+    """
+    Given the block size and the desired block index,
+    return the slice of bytes from 0 to the end of the given block.
+
+    :param block_size: The block size.
+    :param i: The block index.
+    :return: slice of bytes from 0 to the end of the specified block index.
+    """
+    return slice(0, block_size * (i + 1))
+
+
+def bytes_in_blocks(block_size: int, i: int) -> slice:
+    """
+    Given the block size and the desired block index,
+    return the slice of interesting bytes.
+
+    :param block_size: The block size.
+    :param i: The block index.
+    :return: slice of bytes pointing to given block index.
+    """
+    return slice(block_size * i, block_size * (i + 1))
+
+
 def split_blocks(b: bytes, k_len: int) -> tuple:
     """Given a buffer and the key len, split the buffer into blocks.
 
@@ -47,8 +83,14 @@ def pad_with_buffer(b: bytes, pad: bytes) -> bytes:
 def pkcs(b: bytes, size: int) -> bytes:
     """
     PKCS#7 padding.
-    Given the block size, pad bytes in order
-    to be a multiple of the specified size.
+    Given the block size, pad the input buffer,
+    so that the result is a multiple of the specified size.
+
+    Please note that this function will always pad,
+    even if the buffer is already a multiple of the size.
+    So, if size is 16 and b is "YELLOW SUBMARINE",
+    it will be padded to:
+    b'YELLOW SUBMARINE\x10\x10\x10\x10\...\x10\x10\x10\x10'
 
     :param b: A buffer of bytes.
     :param size: The block size.
@@ -62,6 +104,29 @@ def pkcs(b: bytes, size: int) -> bytes:
         b.append(padding)
 
     return bytes(b)
+
+
+def un_pkcs(b: bytes) -> bytes:
+    """
+    PKCS#7 un_padding.
+    Remove padding from the bytes (if any).
+    This function is best effort.
+    If padding is invalid, or absent,
+    the input buffer will be returned as it is.
+
+    :param b: An eventually padded buffer of bytes.
+    :return: The buffer without padding.
+    """
+    b = bytearray(b)
+    padding = b[-1]
+    if padding == 0:
+        return bytes(b)
+
+    for i in range(-padding, 0):
+        if b[i] != padding:
+            return bytes(b)
+
+    return bytes(b[:-padding])
 
 
 def any_equal_block(b: bytes) -> bool:

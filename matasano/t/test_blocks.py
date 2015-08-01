@@ -42,11 +42,30 @@ class BlocksTestCase(unittest.TestCase):
 
     def test_pkcs(self):
         b = "YELLOW SUBMARINE".encode("ascii")
+
         size = 20
         padded = matasano.blocks.pkcs(b, size)
-
         self.assertEqual(len(padded), size)
         self.assertEqual(padded, b + b"\x04" * 4)
+
+        size = 16
+        padded = matasano.blocks.pkcs(b, size)
+        print(padded)
+        self.assertEqual(len(padded), size * 2)
+        self.assertEqual(padded, b + (b"\x10" * size))
+
+    def test_un_pkcs(self):
+        b = "YELLOW SUBMARINE".encode("ascii")
+
+        size = 20
+        padded = matasano.blocks.pkcs(b, size)
+        un_padded = matasano.blocks.un_pkcs(padded)
+        self.assertEqual(b, un_padded)
+
+        size = 16
+        padded = matasano.blocks.pkcs(b, size)
+        un_padded = matasano.blocks.un_pkcs(padded)
+        self.assertEqual(b, un_padded)
 
     def test_aes_ecb(self):
         f = matasano.blocks.aes_ecb
@@ -66,6 +85,63 @@ class BlocksTestCase(unittest.TestCase):
         self.assertEqual(
             f(key, f(key, b), decrypt=True),
             b
+        )
+
+    def test_bytes_in_blocks(self):
+        f = matasano.blocks.bytes_in_blocks
+        size = 16
+
+        self.assertEqual(
+            f(size, 0),
+            slice(0, size)
+        )
+
+        self.assertEqual(
+            f(size, 1),
+            slice(size, size * 2)
+        )
+
+    def test_bytes_to_block(self):
+        f = matasano.blocks.bytes_to_block
+        size = 16
+
+        self.assertEqual(
+            f(size, 0),
+            slice(0, size)
+        )
+
+        self.assertEqual(
+            f(size, 1),
+            slice(0, size * 2)
+        )
+
+        self.assertEqual(
+            f(size, 10),
+            slice(0, size * 11)
+        )
+
+    def test_ith_byte_in_block(self):
+        f = matasano.blocks.ith_byte_block
+        size = 16
+
+        self.assertEqual(
+            f(size, 0),
+            0
+        )
+
+        self.assertEqual(
+            f(size, 1),
+            0
+        )
+
+        self.assertEqual(
+            f(size, size),
+            1
+        )
+
+        self.assertEqual(
+            f(size, size * 2),
+            2
         )
 
 
