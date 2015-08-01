@@ -243,9 +243,25 @@ def fourteen():
     print("Guessed hidden string is:\n{}".format(
         attacker.unhidden_string.decode("ascii")
     ))
-    # print("The attack results was: {}.".format(
-    #     "success" if attack else "failure"
-    # ))
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
+
+
+def fifteen():
+    """http://cryptopals.com/sets/2/challenges/15/"""
+    pads = (
+        b"ICE ICE BABY\x04\x04\x04\x04",
+        b"ICE ICE BABY\x05\x05\x05\x05",
+        b"ICE ICE BABY\x01\x02\x03\x04"
+    )
+
+    for padded in pads:
+        try:
+            matasano.blocks.un_pkcs(padded)
+            print("Padded buffer {} is valid.".format(padded))
+        except matasano.blocks.BadPaddingException:
+            print("Padded buffer {} is invalid.".format(padded))
 
 
 def _create_parser() -> argparse.ArgumentParser:
