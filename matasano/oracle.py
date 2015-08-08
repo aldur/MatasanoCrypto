@@ -132,7 +132,6 @@ class OracleAesEcbCbc(Oracle):
         ECB, false otherwise.
         :return: True if attacker correctly guesses.
         """
-
         if self._guess_done:
             raise CheatingException("Attackers can only guess once")
         self._guess_done = True
@@ -229,6 +228,94 @@ class OracleProfileForUser(Oracle):
         :param args: An iterable of bytes.
         """
         return super().challenge(args)
+
+
+class OracleBitflippingCBC(Oracle):
+    """
+    An encryption oracle that takes an arbitrary string,
+    prepends it with:
+        "comment1=cooking%20MCs;userdata="
+    And appends to the result the string:
+        ";comment2=%20like%20a%20pound%20of%20bacon"
+
+    Before processing the string it escapes the meta characters
+    "=" and ";".
+
+    The attacker's goal is to forge a string such that,
+    once decrypted, it contains ";admin=true"
+    """
+
+    def __init__(self):
+        super(Oracle, self).__init__()
+        """
+        This is a consistent AES key.
+        It is the same for the whole module lifetime,
+        but it's hidden from anyone (kinda)
+        """
+        self._consistent_key = random_aes_key()
+
+        """
+        The string prefix.
+        """
+        self._prefix = b"comment1=cooking%20MCs;userdata="
+
+        """
+        The string suffix.
+        """
+        self._suffix = b";comment2=%20like%20a%20pound%20of%20bacon"
+
+        """
+        The meta-characters to be escaped.
+        """
+        self._meta = "=;"
+
+        self._guess = False
+
+    def challenge(self, *args: bytes) -> bytes:
+        """
+        This oracle doesn't provide a challenge.
+        :param args: An iterable of bytes.
+        """
+        return super().challenge(args)
+
+    def experiment(self, input_string: bytes) -> bytes:
+        """
+        Escape the meta-character from the input string.
+        Append the prefix and the suffix.
+        Pad the result.
+        Encrypt it, and return it to the caller.
+
+        :param input_string: The input string.
+        """
+        input_string = matasano.util.escape_metas(
+            input_string.decode("ascii"), self._meta
+        ).encode("ascii")
+        input_string = self._prefix + input_string + self._suffix
+        input_string = matasano.blocks.pkcs(input_string, 16)
+
+        return matasano.blocks.aes_cbc(
+            self._consistent_key,
+            input_string
+        )
+
+    def guess(self, guess: bytes) -> bool:
+        """
+        Check whether the attacker has forged an admin user.
+
+        :param guess: An encoded and encrypted user profile.
+        :raise CheatingException: If called more than once.
+        :return: True on admin user forging.
+        """
+        if self._guess:
+            raise CheatingException("Attacker can only guess once!")
+        self._guess = True
+
+        payload = matasano.blocks.aes_cbc(
+            self._consistent_key,
+            guess,
+            decrypt=True
+        )
+        return b";admin=true;" in payload
 
 
 class OracleByteAtATimeEcb(Oracle):

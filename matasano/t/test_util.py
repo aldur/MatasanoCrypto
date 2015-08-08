@@ -62,6 +62,30 @@ class UtilTestCase(unittest.TestCase):
                               "c692b20283165286326302e27282f")
         self.assertEqual(truth, matasano.util.repeating_xor(lines, key))
 
+    def test_escape_metas(self):
+        metas = ";="
+
+        s = ";foo===bar;"
+        truth = "\;foo\=\=\=bar\;"
+        self.assertEqual(
+            truth,
+            matasano.util.escape_metas(s, metas)
+        )
+
+        s = "foobar"
+        truth = "foobar"
+        self.assertEqual(
+            truth,
+            matasano.util.escape_metas(s, metas)
+        )
+
+        s = "foo\=bar"
+        truth = "foo\\\\=bar"
+        self.assertEqual(
+            truth,
+            matasano.util.escape_metas(s, metas)
+        )
+
     def test_key_value_parsing(self):
         kv = "foo=bar&baz=qux&zap=zazzle"
         truth = {

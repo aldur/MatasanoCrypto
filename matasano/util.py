@@ -6,6 +6,7 @@ __author__ = "aldur"
 """Various utils."""
 
 import base64
+import re
 
 
 def hex_to_b64(hex_input: bytes) -> bytes:
@@ -62,6 +63,28 @@ def repeating_xor(b: bytes, key: bytes) -> bytes:
         b[i] ^ key[i % len(key)]
         for i in range(len(b))
     )
+
+
+def escape_metas(s: str, meta: str, escape="\\") -> str:
+    """
+    Given a set of meta-characters,
+    escape those chars from the given string.
+
+    :param s: The string to be escaped.
+    :param meta: The characters to be escaped.
+    :param escape: The escape character (defaults to '\')
+    :return: The escaped string.
+    """
+    assert s
+    assert meta
+
+    for m in meta:
+        s = re.sub(
+            re.escape(m),
+            escape + m,
+            s
+        )
+    return s
 
 
 def key_value_parsing(s: str) -> dict:

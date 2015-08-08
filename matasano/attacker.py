@@ -103,6 +103,49 @@ class AttackerProfileForUser(Attacker):
         return self.oracle.guess(user)
 
 
+class AttackerBitFlippingCBC(Attacker):
+    """
+    The attacker against the Bit Flipping CBC Oracle.
+    Forge a byte buffer such that, once encrypted,
+    will be manipulated in order to create a user
+    having admin rights (i.e. containing the string
+        ";admin=true;"
+    )
+
+    We know for sure that the oracle escapes the meta
+    characters ";" and "=".
+    As a consequence, we won't use them, and we'll
+    manipulate the CBC cipher-text.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleBitflippingCBC):
+        super().__init__(oracle)
+        self.prefix_len = 32  # The len of the string prefixed
+
+    def attack(self) -> bool:
+        """
+        Perform the attack against the oracle.
+        :return: True if the attack was successful.
+        """
+        # The prefix string is exactly 32 bytes,
+        # so we can simply ignore it
+
+        # We'll use the first block in order to manipulate the next one.
+        trap = b"\x00" * 16
+
+        # XOR the meta chars, in order to hide them
+        trap += bytes((ord(";") ^ 1, ))  # 1-st
+        trap += b"admin"
+        trap += bytes((ord("=") ^ 1, ))  # 7-th
+        trap += b"true"
+
+        cipher = bytearray(self.oracle.experiment(trap))
+        for i in (0, 6):
+            cipher[self.prefix_len + i] ^= 1
+
+        return self.oracle.guess(bytes(cipher))
+
+
 class AttackerByteAtATimeEcb(Attacker):
     """
     The attacker against the One Byte at a Time Ecb Oracle.

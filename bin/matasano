@@ -264,6 +264,17 @@ def fifteen():
             print("Padded buffer {} is invalid.".format(padded))
 
 
+def sixteen():
+    """http://cryptopals.com/sets/2/challenges/16/"""
+    oracle = matasano.oracle.OracleBitflippingCBC()
+    attacker = matasano.attacker.AttackerBitFlippingCBC(oracle)
+
+    attack = attacker.attack()
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.
