@@ -5,6 +5,7 @@ __author__ = 'aldur'
 
 import unittest
 import matasano.blocks
+import matasano.oracle
 
 
 class BlocksTestCase(unittest.TestCase):
@@ -50,7 +51,6 @@ class BlocksTestCase(unittest.TestCase):
 
         size = 16
         padded = matasano.blocks.pkcs(b, size)
-        print(padded)
         self.assertEqual(len(padded), size * 2)
         self.assertEqual(padded, b + (b"\x10" * size))
 
@@ -99,9 +99,15 @@ class BlocksTestCase(unittest.TestCase):
         f = matasano.blocks.aes_cbc
         key = "YELLOW SUBMARINE".encode("ascii")
         b = "00foobarfoobar00".encode("ascii")
+        iv = matasano.oracle.random_aes_key()
 
         self.assertEqual(
-            f(key, f(key, b), decrypt=True),
+            f(key, f(key, b)[0], decrypt=True)[0],
+            b
+        )
+
+        self.assertEqual(
+            f(key, f(key, b, iv=iv)[0], decrypt=True, iv=iv)[0],
             b
         )
 

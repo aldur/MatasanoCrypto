@@ -19,7 +19,7 @@ class OracleTestCase(unittest.TestCase):
         low = 5
         high = 6
         r = matasano.oracle.random_bytes_random_range(low, high)
-        self.assert_(
+        self.assertTrue(
             low <= len(r) <= high
         )
 

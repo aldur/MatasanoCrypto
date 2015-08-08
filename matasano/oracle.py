@@ -123,7 +123,11 @@ class OracleAesEcbCbc(Oracle):
         # Pad if necessary
         b = matasano.blocks.pkcs(b, 16)
 
-        return self.cipher(key, b)
+        ciphertext = self.cipher(key, b)
+        if isinstance(ciphertext, collections.Sequence):
+            return ciphertext[0]
+        else:
+            return ciphertext
 
     def guess(self, guess: bool) -> bool:
         """
@@ -293,10 +297,11 @@ class OracleBitflippingCBC(Oracle):
         input_string = self._prefix + input_string + self._suffix
         input_string = matasano.blocks.pkcs(input_string, 16)
 
-        return matasano.blocks.aes_cbc(
+        ciphertext, _ = matasano.blocks.aes_cbc(
             self._consistent_key,
             input_string
         )
+        return ciphertext
 
     def guess(self, guess: bytes) -> bool:
         """
@@ -310,7 +315,7 @@ class OracleBitflippingCBC(Oracle):
             raise CheatingException("Attacker can only guess once!")
         self._guess = True
 
-        payload = matasano.blocks.aes_cbc(
+        payload, _ = matasano.blocks.aes_cbc(
             self._consistent_key,
             guess,
             decrypt=True

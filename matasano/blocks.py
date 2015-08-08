@@ -165,20 +165,24 @@ def aes_ecb(key: bytes, b: bytes, decrypt: bool=False) -> bytes:
 
 def aes_cbc(
         key: bytes, b: bytes,
-        decrypt: bool=False, random_iv: bool=False
-) -> bytes:
+        decrypt: bool=False,
+        iv: bytes=None,
+        random_iv: bool=False
+) -> tuple:
     """AES CBC mode.
 
     :param key: The cipher key.
     :param b: The buffer to be encrypted/decrypted.
     :param decrypt: Whether we should encrypt or decrypt.
+    :param iv: If not None, use this IV (and ignore random_iv param)
     :param random_iv: Whether we should use a random IV.
-    :returns: The encrypted/decrypted buffer.
+    :returns: The encrypted/decrypted buffer and the employed IV.
 
     """
     exit_buffer = b''
-    iv = b'\x00' * 16 if not random_iv \
-        else matasano.oracle.random_aes_key()
+    if not iv:
+        iv = b'\x00' * 16 if not random_iv \
+            else matasano.oracle.random_aes_key()
 
     previous = iv
     for i in range(0, len(b), 16):
@@ -196,4 +200,4 @@ def aes_cbc(
             exit_buffer += matasano.util.xor(output, previous)
             previous = block
 
-    return exit_buffer
+    return exit_buffer, iv

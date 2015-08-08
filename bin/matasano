@@ -171,7 +171,7 @@ def ten():
         key = "YELLOW SUBMARINE".encode("ascii")
         print(
             "Decrypted:\n{}".format(
-                matasano.blocks.aes_cbc(key, b, decrypt=True).decode("ascii")
+                matasano.blocks.aes_cbc(key, b, decrypt=True)[0].decode("ascii")
             )
         )
 
