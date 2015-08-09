@@ -59,30 +59,32 @@ class BlocksTestCase(unittest.TestCase):
 
         size = 20
         padded = matasano.blocks.pkcs(b, size)
-        un_padded = matasano.blocks.un_pkcs(padded)
+        un_padded = matasano.blocks.un_pkcs(padded, size)
         self.assertEqual(b, un_padded)
 
         size = 16
         padded = matasano.blocks.pkcs(b, size)
-        un_padded = matasano.blocks.un_pkcs(padded)
+        un_padded = matasano.blocks.un_pkcs(padded, size)
         self.assertEqual(b, un_padded)
 
         padded = b"ICE ICE BABY\x04\x04\x04\x04"
-        un_padded = matasano.blocks.un_pkcs(padded)
+        un_padded = matasano.blocks.un_pkcs(padded, size)
         self.assertEqual(b"ICE ICE BABY", un_padded)
 
         padded = b"ICE ICE BABY\x05\x05\x05\x05"
         self.assertRaises(
             matasano.blocks.BadPaddingException,
             matasano.blocks.un_pkcs,
-            padded
+            padded,
+            size
         )
 
         padded = b"ICE ICE BABY\x01\x02\x03\x04"
         self.assertRaises(
             matasano.blocks.BadPaddingException,
             matasano.blocks.un_pkcs,
-            padded
+            padded,
+            size
         )
 
     def test_aes_ecb(self):
@@ -112,7 +114,7 @@ class BlocksTestCase(unittest.TestCase):
         )
 
     def test_bytes_in_blocks(self):
-        f = matasano.blocks.bytes_in_blocks
+        f = matasano.blocks.bytes_in_block
         size = 16
 
         self.assertEqual(

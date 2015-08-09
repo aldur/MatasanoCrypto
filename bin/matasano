@@ -14,7 +14,6 @@ import matasano.attacker
 import base64
 import argparse
 
-
 _num2words = {
     1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five',
     6: 'six', 7: 'seven', 8: 'eight', 9: 'nine', 10: 'ten',
@@ -258,7 +257,7 @@ def fifteen():
 
     for padded in pads:
         try:
-            matasano.blocks.un_pkcs(padded)
+            matasano.blocks.un_pkcs(padded, 16)
             print("Padded buffer {} is valid.".format(padded))
         except matasano.blocks.BadPaddingException:
             print("Padded buffer {} is invalid.".format(padded))
@@ -270,6 +269,23 @@ def sixteen():
     attacker = matasano.attacker.AttackerBitFlippingCBC(oracle)
 
     attack = attacker.attack()
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
+
+
+def seventeen():
+    """http://cryptopals.com/sets/3/challenges/17/"""
+    oracle = matasano.oracle.OracleCBCPadding("input/17.txt")
+    attacker = matasano.attacker.AttackerCBCPadding(oracle)
+
+    attack = attacker.attack()
+    print("Guessed hidden string is:\n{}".format(
+        attacker.discovered_string.decode("ascii")
+    ))
+    print("Decoding it produces:\n{}".format(
+        base64.b64decode(attacker.discovered_string).decode("ascii")
+    ))
     print("The attack results was: {}.".format(
         "success" if attack else "failure"
     ))

@@ -134,9 +134,9 @@ class AttackerBitFlippingCBC(Attacker):
         trap = b"\x00" * 16
 
         # XOR the meta chars, in order to hide them
-        trap += bytes((ord(";") ^ 1, ))  # 1-st
+        trap += bytes((ord(";") ^ 1,))  # 1-st
         trap += b"admin"
-        trap += bytes((ord("=") ^ 1, ))  # 7-th
+        trap += bytes((ord("=") ^ 1,))  # 7-th
         trap += b"true"
 
         cipher = bytearray(self.oracle.experiment(trap))
@@ -218,7 +218,9 @@ class AttackerByteAtATimeEcb(Attacker):
             self.unhidden_string += byte
 
         self.unhidden_string = self.unhidden_string.rstrip(b"\x00")
-        self.unhidden_string = matasano.blocks.un_pkcs(self.unhidden_string)
+        self.unhidden_string = matasano.blocks.un_pkcs(
+            self.unhidden_string, self.block_size
+        )
         return self.oracle.guess(self.unhidden_string)
 
     def byte_discovery(self, i: int) -> bytes:
@@ -373,7 +375,7 @@ class AttackerHarderByteAtATimeEcb(AttackerByteAtATimeEcb):
 
         assert len(a) == len(b)
         for i in range(0, len(a) // self.block_size):
-            block_slice = matasano.blocks.bytes_in_blocks(self.block_size, i)
+            block_slice = matasano.blocks.bytes_in_block(self.block_size, i)
             if a[block_slice] != b[block_slice]:
                 last_prefix_block = i
                 break
@@ -489,5 +491,93 @@ class AttackerHarderByteAtATimeEcb(AttackerByteAtATimeEcb):
             self.unhidden_string += byte
 
         self.unhidden_string = self.unhidden_string.rstrip(b"\x00")
-        self.unhidden_string = matasano.blocks.un_pkcs(self.unhidden_string)
+        self.unhidden_string = matasano.blocks.un_pkcs(
+            self.unhidden_string,
+            self.block_size
+        )
         return self.oracle.guess(self.unhidden_string)
+
+
+class AttackerCBCPadding(Attacker):
+    """
+    The attacker against the CBC padding oracle.
+    The oracle holds an unknown string.
+    The attacker's goal is to discover such string.
+
+    The oracle provides a method to check whether
+    the plaintext related to a given ciphertext has been
+    correctly padded.
+    This is a side-channel and we'll use it.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleCBCPadding):
+        super().__init__(oracle)
+        self.discovered_string = b""
+
+    def attack(self) -> bool:
+        """
+        The oracle provides a padding check method.
+        An attacker can exploit such method to discover
+        the encrypted string, while ignoring the encryption key.
+
+        How?
+        For each block of the ciphertext, reveal bytes from last to first.
+        To do this, create a custom IV, whose byte of interest is set
+        to values from 0 to 255.
+        Send the block and the IV to the decryption oracle and check
+        if the padding is correct.
+        If it is correct, then AES_CBC_D(block) ^ custom IV produces
+        a correct padding.
+        As a consequence, the byte of interest ^ its position
+        (i.e. the padding) ^ the same byte of the previous block reveals
+        the original plaintext.
+        """
+        ciphertext, iv = self.oracle.challenge()
+
+        previous = iv
+        for b in range(len(ciphertext) // 16):
+            discovered = []  # Store already discovered bytes of the block
+            block = ciphertext[
+                matasano.blocks.bytes_in_block(
+                    16, b
+                )
+            ]
+
+            for i in reversed(range(16)):
+                padding_value = 16 - i
+                trap = matasano.oracle.random_bytes_range(i)
+
+                for j in range(256):
+                    _trap = trap + bytes((j,))
+
+                    if padding_value > 1:
+                        suffix = bytes((
+                            padding_value ^ previous_value
+                            for previous_value
+                            in discovered
+                        ))
+                        _trap += suffix
+
+                    assert len(_trap) == 16, \
+                        "Got bad _trap len {}".format(len(_trap))
+
+                    if self.oracle.experiment(
+                        _trap,
+                        block
+                    ):
+                        discovered.insert(0, j ^ padding_value)
+                        break
+                else:
+                    raise Exception(
+                        "Something went wrong while attacking the padding oracle - "
+                        "block #{}, byte #{}".format(b, i)
+                    )
+
+            assert len(discovered) == 16
+            self.discovered_string += bytes((
+                previous[i] ^ v for i, v in enumerate(discovered)
+            ))
+
+            previous = block
+
+        return self.oracle.guess(self.discovered_string)

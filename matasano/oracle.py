@@ -18,14 +18,6 @@ import matasano.blocks
 import matasano.util
 
 
-def random_aes_key() -> bytes:
-    """Generate a random AES key (16 bytes)
-
-    :return: 16 bytes.
-    """
-    return bytes(random.randint(0, 255) for _ in range(16))
-
-
 class CheatingException(Exception):
     """
     Thrown when the oracle detects that the attacker is trying to cheat.
@@ -339,7 +331,7 @@ class OracleByteAtATimeEcb(Oracle):
         super(Oracle, self).__init__()
         """
         This is a consistent AES key.
-        It is the same for the whole module lifetime,
+        It is the same for the whole oracle lifetime,
         but it's hidden from anyone (kinda)
         """
         self._consistent_key = random_aes_key()
@@ -444,3 +436,109 @@ def random_bytes_random_range(low: int, high: int) -> bytes:
         for _
         in range(0, random.randint(low, high))
     )
+
+
+def random_bytes_range(length: int) -> bytes:
+    """
+    Generate a sequence of specified length of random bytes.
+
+    :param length: The len of the range.
+    :return: A new range of random bytes.
+    """
+    return bytes(
+        random.randint(0, 255)
+        for _
+        in range(0, length)
+    )
+
+
+def random_aes_key() -> bytes:
+    """Generate a random AES key (16 bytes)
+
+    :return: 16 bytes.
+    """
+    return random_bytes_range(16)
+
+
+class OracleCBCPadding(Oracle):
+    """
+    Choose at random between one of the random possible strings.
+    Pad it.
+    CBC encrypt it with a fixed and random AES key.
+    Return to the caller the ciphertext and the IV.
+
+    Furthermore, provide a function that takes a ciphertext,
+    decrypts it and returns True whether the acquired plaintext
+    has a valid padding.
+
+    The attacker's goal is to discover the encrypted string.
+    """
+
+    def __init__(self, strings_path: str):
+        """
+        Init the oracle.
+        Generate a random AES key and pick at random
+        on of the possible strings inside the string file.
+
+        :param strings_path: The path to the string file.
+        """
+        super(Oracle, self).__init__()
+        self._consistent_key = random_aes_key()
+
+        with open(strings_path, "rb") as strings:
+            s = random.choice(strings.readlines()).rstrip()
+            self._hidden_string = matasano.blocks.pkcs(s, 16)
+
+        self._guessed = False
+
+    def guess(self, guess: bytes) -> bool:
+        """
+        Check whether the bytes given by the attacker match
+        our hidden string.
+        :param guess: The attacker's guess
+        """
+        assert guess
+
+        if self._guessed:
+            raise CheatingException("Attackers can only guess once.")
+        self._guessed = True
+
+        return guess == self._hidden_string
+
+    def challenge(self) -> tuple:
+        """
+        Return to the caller a CBC encryption of the hidden string.
+        :return The encryption and the IV.
+        """
+        ciphertext, iv = matasano.blocks.aes_cbc(
+            self._consistent_key,
+            self._hidden_string,
+            random_iv=True
+        )
+        return ciphertext, iv
+
+    def experiment(self, iv: bytes, b: bytes) -> bool:
+        """
+        Check whether the given bytes are correctly padded,
+        once decrypted by using the given IV.
+
+        :param iv: The IV to be used.
+        :param b: The bytes to be checked.
+        """
+        assert iv
+        assert b
+        assert len(b) % 16 == 0
+
+        plaintext, _ = matasano.blocks.aes_cbc(
+            self._consistent_key,
+            b,
+            iv=iv,
+            decrypt=True
+        )
+
+        try:
+            matasano.blocks.un_pkcs(plaintext, 16)
+        except matasano.blocks.BadPaddingException:
+            return False
+        else:
+            return True

@@ -42,7 +42,7 @@ def bytes_to_block(block_size: int, i: int) -> slice:
     return slice(0, block_size * (i + 1))
 
 
-def bytes_in_blocks(block_size: int, i: int) -> slice:
+def bytes_in_block(block_size: int, i: int) -> slice:
     """
     Given the block size and the desired block index,
     return the slice of interesting bytes.
@@ -114,20 +114,21 @@ def pkcs(b: bytes, size: int) -> bytes:
     return bytes(b)
 
 
-def un_pkcs(b: bytes) -> bytes:
+def un_pkcs(b: bytes, size: int) -> bytes:
     """
     PKCS#7 un_padding.
     Remove padding from the bytes.
     If padding is invalid, throws an exception.
 
     :param b: A padded buffer of bytes.
+    :param size: The block size.
     :return: The buffer without padding.
     :raises: BadPaddingException
     """
     b = bytearray(b)
     padding = b[-1]
-    if padding == 0:
-        return bytes(b)
+    if padding <= 0 or padding > size:
+        raise BadPaddingException
 
     for i in range(-padding, 0):
         if b[i] != padding:
