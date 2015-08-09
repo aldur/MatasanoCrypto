@@ -113,6 +113,16 @@ class BlocksTestCase(unittest.TestCase):
             b
         )
 
+    def test_aes_ctr(self):
+        f = matasano.blocks.aes_ctr
+        key = "YELLOW SUBMARINE".encode("ascii")
+        b = "00foobarfoobar00".encode("ascii")
+
+        self.assertEqual(
+            f(key, f(key, b)),
+            b
+        )
+
     def test_bytes_in_blocks(self):
         f = matasano.blocks.bytes_in_block
         size = 16

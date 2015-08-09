@@ -5,8 +5,11 @@ __author__ = 'aldur'
 
 """Handle operations supporting blocks here."""
 
+import math
+
 import matasano.util
 import matasano.oracle
+
 from Crypto.Cipher import AES
 
 
@@ -202,3 +205,40 @@ def aes_cbc(
             previous = block
 
     return exit_buffer, iv
+
+
+def aes_ctr(
+        key: bytes,
+        b: bytes,
+        nonce: int=0
+) -> bytes:
+    """AES CTR mode.
+
+    :param key: The cipher key.
+    :param b: The buffer to be encrypted/decrypted.
+    :param nonce: The nonce to be used (defaults to 0).
+    :returns: The encrypted/decrypted buffer.
+    """
+    assert len(key) % 16 == 0, \
+        "Got wrong key size {}".format(len(key))
+    assert b
+
+    nonce = nonce.to_bytes(8, 'little', signed=False)
+    result = b""
+
+    for i in range(math.ceil(len(b) / 16)):
+        aes = AES.new(key, AES.MODE_ECB)
+        ctr = i.to_bytes(8, 'little', signed=False)
+
+        block_slice = bytes_in_block(16, i)
+        try:
+            block = b[block_slice]
+        except IndexError:
+            block = b[block_slice.start:]
+
+        result += matasano.util.xor(
+            block,
+            aes.encrypt(nonce + ctr)[:len(block)]
+        )
+
+    return result
