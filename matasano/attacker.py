@@ -10,6 +10,7 @@ The attacker tools will implemented here.
 import abc
 import matasano.oracle
 import matasano.blocks
+import matasano.stats
 
 
 class Attacker(object):
@@ -581,3 +582,78 @@ class AttackerCBCPadding(Attacker):
             previous = block
 
         return self.oracle.guess(self.discovered_string)
+
+
+class AttackerFixedNonceCTR(Attacker):
+    """
+    The attacker against the fixed nonce CTR oracle.
+    The oracle holds a tuple of unknown strings.
+    The attacker's goal is to discover such strings.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleFixedNonceCTR):
+        super().__init__(oracle)
+        self.discovered_strings = tuple()
+
+    def attack(self) -> bool:
+        """
+        Employ text analysis tools to discover the encrypted strings.
+        All the strings have been encrypted by using the same key-space.
+        So the attack methodology is similar to the one used against
+        Vigenere.
+
+        Specifically, split in buckets the oracle's challenge.
+        Attack each bucket by guessing its XOR key char.
+        Iterate until the result is satisfying (i.e. all chars are ASCII).
+        """
+        buffers = self.oracle.challenge()
+        buffers = [bytearray(b) for b in buffers]
+
+        max_len = len(max(buffers, key=lambda b: len(b)))
+        buckets = [
+            [
+                b[i] if len(b) > i else None  # String len differs
+                for b
+                in buffers
+            ]
+            for i in range(max_len)
+        ]
+
+        # Guess the key
+        key = [
+            tuple((
+                ord(c) for c in
+                matasano.stats.most_likely_xor_chars(
+                    bytes([byte for byte in b if byte is not None]),
+                    3
+                )
+            ))
+            for b in buckets
+        ]
+        assert len(key) == len(buckets)
+
+        k_used = {
+            k: 0 for k in range(len(key))
+        }
+
+        k = 0
+        while k < len(key):
+            v = key[k]
+            new_buffers = buffers[:]
+
+            for buffer in new_buffers:
+                if len(buffer) <= k:
+                    continue  # Skip completed buffers
+
+                buffer[k] ^= v[k_used[k]]
+                if buffer[k] >= 128 and k_used[k] < len(v) - 1:
+                    k_used[k] += 1
+                    break
+            else:
+                buffers = new_buffers
+                k += 1
+
+        self.discovered_strings = tuple(
+            bytes(b) for b in buffers
+        )
+        return self.oracle.guess(self.discovered_strings)

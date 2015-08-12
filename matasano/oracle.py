@@ -542,3 +542,69 @@ class OracleCBCPadding(Oracle):
             return False
         else:
             return True
+
+
+class OracleFixedNonceCTR(Oracle):
+    """
+    An encryption oracle that takes a list of
+    base64 encoded strings, decodes them and
+    encrypts them by using AES CTR and a fixed key.
+
+    The attacker's goal is to break the encryption,
+    i.e. to discover the strings.
+    """
+
+    def __init__(self, strings_path: str):
+        """
+        Init the oracle.
+        Generate a random AES key and
+        read the strings.
+
+        :param strings_path: The path to the strings file.
+        """
+        super(Oracle, self).__init__()
+        self._consistent_key = random_aes_key()
+
+        with open(strings_path, "rb") as buffers:
+            self._buffers = tuple(
+                base64.b64decode(s.rstrip()) for s in buffers
+            )
+
+        self._guessed = False
+
+    def challenge(self) -> tuple:
+        """
+        Encrypt the strings and return them to the caller.
+
+        :return A tuple of encrypted strings.
+        """
+        return tuple(
+            matasano.blocks.aes_ctr(
+                self._consistent_key,
+                b
+            ) for b in self._buffers
+        )
+
+    def experiment(self, *args: bytes) -> bytes:
+        """
+        This oracle doesn't provide experiments.
+        :param args: An iterable of bytes.
+        """
+        return super().experiment(args)
+
+    def guess(self, guess: tuple) -> bool:
+        """
+        Check whether the guess is equal to the stored buffers.
+        Only check the prefix that is common to all the strings,
+        otherwise we'd be requiring the attacker to blind guess
+        the longer strings.
+
+        :param guess: The attacker's guess.
+        """
+        assert guess
+
+        min_len = len(min(self._buffers, key=lambda b: len(b))) + 1
+        return len(guess) == len(self._buffers) and all(
+            guess[i][:min_len].lower() == self._buffers[i][:min_len].lower()
+            for i, _ in enumerate(guess)
+        )

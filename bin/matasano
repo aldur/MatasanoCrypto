@@ -70,7 +70,7 @@ def three():
     s = bytearray.fromhex(
         "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736"
     )
-    key = matasano.stats.most_likely_xor_char(s)
+    key = matasano.stats.most_likely_xor_chars(s)[0]
     plaintext = matasano.util.xor_char(s, key).decode("ascii")
     print("Key: {}, Plaintext: {}".format(key, plaintext))
 
@@ -83,7 +83,7 @@ def four():
         for line in f:
             b = bytes.fromhex(line.rstrip())
             try:
-                c = matasano.stats.most_likely_xor_char(b)
+                c = matasano.stats.most_likely_xor_chars(b)[0]
                 plaintext = matasano.util.xor_char(b, c).decode("ascii")
                 plaintexts.append(plaintext)
             except UnicodeDecodeError:
@@ -121,7 +121,7 @@ def six():
 
         key = tuple(
             map(
-                lambda x: matasano.stats.most_likely_xor_char(x),
+                lambda x: matasano.stats.most_likely_xor_chars(x)[0],
                 blocks
             )
         )
@@ -304,6 +304,20 @@ def eighteen():
         matasano.blocks.aes_ctr(
             key, b
         )
+    ))
+
+
+def nineteen():
+    """http://cryptopals.com/sets/3/challenges/19/"""
+    oracle = matasano.oracle.OracleFixedNonceCTR("input/19.txt")
+    attacker = matasano.attacker.AttackerFixedNonceCTR(oracle)
+
+    attack = attacker.attack()
+    print("Discovered strings:\n{}".format(
+        "\n".join(b.decode("ascii") for b in attacker.discovered_strings)
+    ))
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
     ))
 
 

@@ -8,6 +8,7 @@ __author__ = "aldur"
 import math
 import collections
 import itertools
+import sys
 
 import matasano.util
 
@@ -88,21 +89,36 @@ def chi_squared(s: str) -> float:
     )
 
 
-def most_likely_xor_char(b: bytes) -> chr:
+def most_likely_xor_chars(b: bytes, count: int=1) -> tuple:
     """Find the most likely char used to xor b.
 
     :param b: An ASCII bytes string.
+    :param count: The number of chars to be returned.
     :return: The most likely character used in the XOR.
     """
     assert b
 
-    return chr(
-        min(
-            range(128),
-            key=lambda i: chi_squared(
+    def rank(i: int) -> int:
+        """
+        Inner ranking function.
+        XOR the whole buffer with the given integer,
+        decode it as ASCII and rank it by using
+        CHI squared.
+
+        :param i: The XOR key.
+        :return: The CHI Squared value of the decrypted string.
+        """
+        try:
+            return chi_squared(
                 matasano.util.xor_char(b, chr(i)).decode("ascii")
             )
-        )
+        except UnicodeDecodeError:
+            return sys.maxsize
+
+    return tuple(
+        chr(c)
+        for c
+        in sorted(range(256), key=rank)[:count]
     )
 
 
