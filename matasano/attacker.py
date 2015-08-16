@@ -662,7 +662,7 @@ class AttackerFixedNonceCTR(Attacker):
         return self.oracle.guess(self.discovered_strings)
 
 
-class AttackMT19937Seed(Attacker):
+class AttackerMT19937Seed(Attacker):
     """
     Guess the oracle's seed by brute-force.
     Try the possible combinations of seed/output

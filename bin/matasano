@@ -344,7 +344,7 @@ def twentytwo():
     """http://cryptopals.com/sets/3/challenges/22/"""
     print("Please wait while the oracle does its job...")
     oracle = matasano.oracle.OracleMT19937Seed()
-    attacker = matasano.attacker.AttackMT19937Seed(oracle)
+    attacker = matasano.attacker.AttackerMT19937Seed(oracle)
     attack = attacker.attack()
     print("Discovered seed:\n{}".format(
         attacker.discovered_seed
