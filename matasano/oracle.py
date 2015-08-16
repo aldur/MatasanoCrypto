@@ -13,9 +13,11 @@ import base64
 import abc
 import re
 import collections
+import time
 
 import matasano.blocks
 import matasano.util
+import matasano.prng
 
 
 class CheatingException(Exception):
@@ -608,3 +610,64 @@ class OracleFixedNonceCTR(Oracle):
             guess[i][:min_len].lower() == self._buffers[i][:min_len].lower()
             for i, _ in enumerate(guess)
         )
+
+
+class OracleMT19937Seed(Oracle):
+    """
+    This oracle will deliver the challenge in the following way:
+    - wait a random number of seconds
+    - seed the MT_PRNG with the Unix timestamp
+    - wait a random number of seconds
+    - return to the caller the first generated number
+
+    The attacker's goal is to guess the seed.
+    """
+
+    def __init__(
+            self,
+            sleep_min: int=40,
+            sleep_max: int=100
+    ):
+        super().__init__()
+        self._seed = None
+        self._guessed = False
+        self.sleep_min = sleep_min
+        self.sleep_max = sleep_max
+
+    def challenge(self) -> int:
+        """
+        Deliver the challenge to the caller.
+        :return: The first output of the MT PRNG.
+        """
+        time.sleep(
+            random.randint(self.sleep_min, self.sleep_max)
+        )
+        self._seed = int(time.time())
+        mt_prng = matasano.prng.MT19937(self._seed)
+        time.sleep(
+            random.randint(self.sleep_min, self.sleep_max)
+        )
+        return mt_prng.extract_number()
+
+    def guess(self, guess: int) -> bool:
+        """
+        Compare the caller's guess with the stored seed.
+        :param guess: The attacker's guess.
+        :return: True if the guess is correct.
+        """
+        assert self._seed
+
+        if self._guessed:
+            raise CheatingException(
+                "You can only guess once!"
+            )
+
+        self._guessed = True
+        return guess == self._seed
+
+    def experiment(self, *args: bytes) -> bytes:
+        """
+        This oracle doesn't provide experiments.
+        :param args: An iterable of bytes.
+        """
+        return super().experiment(args)

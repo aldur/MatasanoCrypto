@@ -8,9 +8,12 @@ The attacker tools will implemented here.
 """
 
 import abc
+import time
+
 import matasano.oracle
 import matasano.blocks
 import matasano.stats
+import matasano.prng
 
 
 class Attacker(object):
@@ -657,3 +660,39 @@ class AttackerFixedNonceCTR(Attacker):
             bytes(b) for b in buffers
         )
         return self.oracle.guess(self.discovered_strings)
+
+
+class AttackMT19937Seed(Attacker):
+    """
+    Guess the oracle's seed by brute-force.
+    Try the possible combinations of seed/output
+    after calling the oracle.
+
+    :param oracle: The oracle to be attacked.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleMT19937Seed):
+        super().__init__(oracle)
+        self.discovered_seed = None
+
+    def attack(self) -> bool:
+        """
+        Guess the oracle's seed.
+
+        :return: The attack result.
+        """
+        start_time = int(time.time())
+        challenge = self.oracle.challenge()
+        outputs = {
+            matasano.prng.MT19937(seed).extract_number(): seed
+            for seed in range(
+                start_time + self.oracle.sleep_min,
+                start_time + self.oracle.sleep_max + 1
+            )
+        }
+
+        assert challenge in outputs, \
+            "Something went wrong, can't find challenge in outputs."
+        self.discovered_seed = outputs[challenge]
+        return self.oracle.guess(self.discovered_seed)
+
