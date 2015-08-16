@@ -354,6 +354,19 @@ def twentytwo():
     ))
 
 
+def twentythree():
+    """http://cryptopals.com/sets/3/challenges/23/"""
+    oracle = matasano.oracle.OracleMT19937Clone()
+    attacker = matasano.attacker.AttackerMT19937Clone(oracle)
+    attack = attacker.attack()
+    print("Discovered next random numbers:\n{}".format(
+        attacker.next_random_numbers
+    ))
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.

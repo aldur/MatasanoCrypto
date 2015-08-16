@@ -671,3 +671,66 @@ class OracleMT19937Seed(Oracle):
         :param args: An iterable of bytes.
         """
         return super().experiment(args)
+
+
+class OracleMT19937Clone(Oracle):
+    """
+    By using an MT PRNG, generate 624 random outputs
+    (i.e. output the MT internal state).
+
+    The attacker's goal is to clone the state generator,
+    by using the previously output state.
+    """
+    def __init__(self):
+        super().__init__()
+        self._mt_prng = matasano.prng.MT19937(
+            int(time.time())
+        )
+        self._guessed = False
+
+    def guess(self, guess: list) -> bool:
+        """
+        Compare the attacker's guess with the next
+        10 outputs of the PRNG.
+
+        :param guess: The attacker's guess about the next generated numbers.
+        :return: True if the guess is correct.
+        :raise CheatingException: If called more than once.
+        """
+        assert guess
+
+        if self._guessed:
+            raise CheatingException(
+                "You can only guess once!"
+            )
+
+        self._guessed = True
+
+        truth = [
+            self._mt_prng.extract_number()
+            for _ in range(10)
+        ]
+        assert len(truth) == len(guess)
+        return all(truth[i] == g for i, g in enumerate(guess))
+
+    def challenge(self) -> list:
+        """
+        Return a list of the first 624
+        randomly generated numbers to the caller.
+
+        :return: The first 624 randomly generated numbers.
+        """
+        challenge = tuple(
+            self._mt_prng.extract_number()
+            for _ in range(624)
+        )
+
+        assert len(challenge) == 624
+        return challenge
+
+    def experiment(self, *args: bytes) -> bytes:
+        """
+        This oracle doesn't provide experiments.
+        :param args: An iterable of bytes.
+        """
+        return super().experiment(args)

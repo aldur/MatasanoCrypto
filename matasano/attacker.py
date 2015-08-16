@@ -696,3 +696,146 @@ class AttackMT19937Seed(Attacker):
         self.discovered_seed = outputs[challenge]
         return self.oracle.guess(self.discovered_seed)
 
+
+class AttackerMT19937Clone(Attacker):
+    """
+    Clone the MT PRNG hold by the Oracle,
+    by inverting the tempering function
+    for each of the values output by the oracle,
+    and passing the result to a newly created MT clone.
+
+    :param oracle: The oracle to be attacked.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleMT19937Clone):
+        super().__init__(oracle)
+        self.next_random_numbers = []
+
+    @staticmethod
+    def untemper_one(y: int):
+        """
+        Reverse the first tempering transformation:
+        y = x ^ x >> 11
+
+        :param y: The tempering result.
+        :return: The value x that produced y.
+        """
+        prefix = (y >> 21) & 0x07ff  # The first 11 MSB do not change
+
+        middle = (y >> 10) & 0x07ff
+        middle ^= prefix
+
+        suffix = y & 0x03ff
+        suffix ^= middle >> 1
+
+        x = 0x00
+        x |= prefix << 21
+        x |= middle << 10
+        x |= suffix
+
+        return x
+
+    @staticmethod
+    def untemper_two(y: int):
+        """
+        Reverse the second tempering transformation:
+        y = x ^ x << 7 & 2636928640
+
+        :param y: The tempering result.
+        :return: The value x that produced y.
+        """
+        suffix = y & 0x7f  # Last 7 bits are copied
+
+        middle_one = (y >> 7) & 0x7f
+        middle_one ^= ((2636928640 >> 7) & 0x7f) & suffix
+
+        middle_two = (y >> 14) & 0x7f
+        middle_two ^= ((2636928640 >> 14) & 0x7f) & middle_one
+
+        middle_three = (y >> 21) & 0x7f
+        middle_three ^= ((2636928640 >> 21) & 0x7f) & middle_two
+
+        prefix = (y >> 28) & 0x0f
+        prefix ^= ((2636928640 >> 28) & 0x0f) & middle_three
+
+        x = 0x00
+        x |= prefix << 28
+        x |= middle_three << 21
+        x |= middle_two << 14
+        x |= middle_one << 7
+        x |= suffix
+
+        return x
+
+    @staticmethod
+    def untemper_three(y: int):
+        """
+        Reverse the second-last tempering transformation:
+        y = x ^ x << 15 & 4022730752
+
+        :param y: The tempering result.
+        :return: The value x that produced y.
+        """
+        suffix = y & 0x7fff  # Last 15 bits are copied
+
+        middle = (y >> 15) & 0x7fff
+        middle ^= ((4022730752 >> 15) & 0x7fff) & suffix
+
+        prefix = middle & 0x03  # MSB bits of 4022730752 are set so & is ignored
+        prefix ^= (y >> 30) & 0x03
+
+        x = 0x00
+        x |= prefix << 30
+        x |= middle << 15
+        x |= suffix
+
+        return x
+
+    @staticmethod
+    def untemper_four(y: int):
+        """
+        Reverse the last tempering transformation.
+        y = x ^ x >> 18
+
+        :param y: The tempering result.
+        :return: The value x that produced y.
+        """
+        return y ^ (y >> 18)
+
+    @staticmethod
+    def untemper(y: int):
+        """Invert the tempering function applied to n from the Oracle's PRNG.
+        We're interested in finding x, given y.
+            temper(x) = y
+            untemper(y) = x
+
+        :param y: The tempering result.
+        :return: The value x that produced y.
+        """
+        x = AttackerMT19937Clone.untemper_four(y)
+        x = AttackerMT19937Clone.untemper_three(x)
+        x = AttackerMT19937Clone.untemper_two(x)
+        x = AttackerMT19937Clone.untemper_one(x)
+
+        return x
+
+    def attack(self) -> bool:
+        """
+        Clone the oracle's PRNG.
+        :return: True whether the attacks is successful.
+        """
+        challenge = self.oracle.challenge()
+        challenge = [
+            AttackerMT19937Clone.untemper(y)
+            for y in challenge
+        ]
+        mt_prng = matasano.prng.MT19937(0)
+        mt_prng.mt = challenge
+
+        self.next_random_numbers = list(
+            mt_prng.extract_number()
+            for _ in range(10)
+        )
+
+        return self.oracle.guess(self.next_random_numbers)
+

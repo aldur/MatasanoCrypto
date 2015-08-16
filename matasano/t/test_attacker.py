@@ -4,6 +4,8 @@
 __author__ = 'aldur'
 
 import unittest
+import random
+
 import matasano.attacker
 
 
@@ -53,6 +55,32 @@ class AttackerByteAtATimeEcbTestCase(unittest.TestCase):
             f(i, size, prefix),
             (size - prefix) + (i % size) - (i % size) - 1
         )
+
+
+class AttackerMT19937CloneTestCase(unittest.TestCase):
+    def test_untemper_one(self):
+        f = matasano.attacker.AttackerMT19937Clone.untemper_one
+        x = random.randint(0, (2 ** 32) - 1)
+        y = x ^ x >> 11
+        self.assertEqual(x, f(y))
+
+    def test_untemper_two(self):
+        f = matasano.attacker.AttackerMT19937Clone.untemper_two
+        x = random.randint(0, (2 ** 32) - 1)
+        y = x ^ x << 7 & 2636928640
+        self.assertEqual(x, f(y))
+
+    def test_untemper_three(self):
+        f = matasano.attacker.AttackerMT19937Clone.untemper_three
+        x = random.randint(0, (2 ** 32) - 1)
+        y = x ^ x << 15 & 4022730752
+        self.assertEqual(x, f(y))
+
+    def test_untemper_four(self):
+        f = matasano.attacker.AttackerMT19937Clone.untemper_four
+        x = random.randint(0, (2 ** 32) - 1)
+        y = x ^ (x >> 18)
+        self.assertEqual(x, f(y))
 
 if __name__ == '__main__':
     unittest.main()
