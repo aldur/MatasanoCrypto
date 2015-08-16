@@ -10,6 +10,7 @@ import matasano.stats
 import matasano.blocks
 import matasano.oracle
 import matasano.attacker
+import matasano.prng
 
 import base64
 import argparse
@@ -329,6 +330,14 @@ def twenty():
     """http://cryptopals.com/sets/3/challenges/20/"""
     oracle = matasano.oracle.OracleFixedNonceCTR("input/20.txt")
     _fixed_nonce_ctr(oracle)
+
+
+def twentyone():
+    """http://cryptopals.com/sets/3/challenges/21/"""
+    mt_prng = matasano.prng.MT19937(42)
+    print("Randomly generated numbers: {}".format(
+        [mt_prng.extract_number() for _ in range(10)]
+    ))
 
 
 def _create_parser() -> argparse.ArgumentParser:

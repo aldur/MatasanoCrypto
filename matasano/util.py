@@ -116,3 +116,13 @@ def dictionary_to_kv(d: dict) -> str:
     return "&".join(
         "=".join((str(k), str(v))) for k, v in d.items()
     )
+
+
+def int_32_lsb(x: int):
+    """
+    Get the 32 least significant bits.
+
+    :param x: A number.
+    :return: The 32 LSBits of x.
+    """
+    return int(0xFFFFFFFF & x)
