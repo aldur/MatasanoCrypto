@@ -307,9 +307,7 @@ def eighteen():
     ))
 
 
-def nineteen():
-    """http://cryptopals.com/sets/3/challenges/19/"""
-    oracle = matasano.oracle.OracleFixedNonceCTR("input/19.txt")
+def _fixed_nonce_ctr(oracle: matasano.oracle.OracleFixedNonceCTR):
     attacker = matasano.attacker.AttackerFixedNonceCTR(oracle)
 
     attack = attacker.attack()
@@ -319,6 +317,18 @@ def nineteen():
     print("The attack results was: {}.".format(
         "success" if attack else "failure"
     ))
+
+
+def nineteen():
+    """http://cryptopals.com/sets/3/challenges/19/"""
+    oracle = matasano.oracle.OracleFixedNonceCTR("input/19.txt")
+    _fixed_nonce_ctr(oracle)
+
+
+def twenty():
+    """http://cryptopals.com/sets/3/challenges/20/"""
+    oracle = matasano.oracle.OracleFixedNonceCTR("input/20.txt")
+    _fixed_nonce_ctr(oracle)
 
 
 def _create_parser() -> argparse.ArgumentParser:
