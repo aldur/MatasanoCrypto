@@ -839,3 +839,33 @@ class AttackerMT19937Clone(Attacker):
 
         return self.oracle.guess(self.next_random_numbers)
 
+
+class AttackerMT19937Stream(Attacker):
+    """
+    Guess the oracle's seed (i.e. the encryption key).
+
+    :param oracle: The oracle to be attacked.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleMT19937Stream):
+        super().__init__(oracle)
+        self.key = None
+
+    def attack(self) -> bool:
+        """
+        Clone the oracle's PRNG.
+        :return: True whether the attacks is successful.
+        """
+        challenge = self.oracle.challenge()
+
+        for seed in range(0, 2 ** 16):
+            if (matasano.blocks.mt19937_stream(
+                seed,
+                challenge
+            ))[-len(self.oracle.known_plaintext):] == self.oracle.known_plaintext:
+                self.key = seed
+                break
+        else:
+            raise Exception("Something went wrong while brute-forcing the seed.")
+
+        return self.oracle.guess(self.key)

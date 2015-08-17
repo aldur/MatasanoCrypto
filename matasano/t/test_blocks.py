@@ -4,6 +4,8 @@
 __author__ = 'aldur'
 
 import unittest
+import random
+
 import matasano.blocks
 import matasano.oracle
 
@@ -120,6 +122,18 @@ class BlocksTestCase(unittest.TestCase):
 
         self.assertEqual(
             f(key, f(key, b)),
+            b
+        )
+
+    def test_mt19937_stream(self):
+        f = matasano.blocks.mt19937_stream
+        key = random.randint(0, 2 ** 32 -1)
+        b = "00foobarfoobar00".encode("ascii")
+
+        cipher = f(key, b)
+        self.assertEqual(len(cipher), len(b))
+        self.assertEqual(
+            f(key, cipher),
             b
         )
 

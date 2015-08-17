@@ -734,3 +734,60 @@ class OracleMT19937Clone(Oracle):
         :param args: An iterable of bytes.
         """
         return super().experiment(args)
+
+
+class OracleMT19937Stream(Oracle):
+    """
+    Encrypt a string of the following form:
+        <random_number_of_bytes> || AAA...AAA (14 As)
+    The encryption takes places through MT19937-generated numbers
+    used as key stream.
+
+    The attacker's goal is to discover the MT19937 seed
+    (16 bits, by definition).
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._seed = random.randint(0, 2 ** 16 - 1)
+        self.known_plaintext = b"A" * 16
+        self._plaintext = bytes(
+            random_bytes_random_range(
+                1, random.randint(2, 10)
+            )
+        ) + self.known_plaintext
+
+        self._guessed = False
+
+    def challenge(self) -> bytes:
+        """
+        Return to the caller the encryption of the plaintext.
+
+        :return: The encryption of the hidden plaintext.
+        """
+        return matasano.blocks.mt19937_stream(
+            self._seed,
+            self._plaintext
+        )
+
+    def guess(self, guess: int) -> bool:
+        """
+        Compare the attacker's guess against the stored seed.
+
+        :param guess: The attacker's guessed seed.
+        :return: True whether the attack is successful.
+        """
+        if self._guessed:
+            raise CheatingException(
+                "You can only guess once."
+            )
+
+        self._guessed = True
+        return guess == self._seed
+
+    def experiment(self, *args: bytes) -> bytes:
+        """
+        This oracle doesn't provide experiments.
+        :param args: An iterable of bytes.
+        """
+        return super().experiment(args)

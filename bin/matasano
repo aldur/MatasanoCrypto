@@ -367,6 +367,20 @@ def twentythree():
     ))
 
 
+def twentyfour():
+    """http://cryptopals.com/sets/3/challenges/24/"""
+    oracle = matasano.oracle.OracleMT19937Stream()
+    attacker = matasano.attacker.AttackerMT19937Stream(oracle)
+    print("Please wait while brute-forcing the oracle's seed...")
+    attack = attacker.attack()
+    print("Discovered seed:\n{}".format(
+        attacker.key
+    ))
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.

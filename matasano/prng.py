@@ -7,6 +7,8 @@ __author__ = 'aldur'
 
 import matasano.util
 
+import time
+
 
 class MT19937:
 
@@ -79,3 +81,26 @@ class MT19937:
             if y % 2 != 0:
                 self.mt[i] ^= 0x9908b0df
         self.index = 0
+
+    @staticmethod
+    def password_reset_token() -> int:
+        """
+        Use the current time as seed,
+        and generate a password reset token.
+
+        :return: A randomly generated 32 bit number (the token)
+        """
+        mt_prng = MT19937(int(time.time()))
+        return mt_prng.extract_number()
+
+    @staticmethod
+    def is_valid_password_reset_token(token: int) -> bool:
+        """
+        Check whether the given number is a valid password reset token,
+        from the current time as seed.
+
+        :param token: The token to be checked.
+        :return: True whether the specified token is valid.
+        """
+        mt_prng = MT19937(int(time.time()))
+        return mt_prng.extract_number() == token
