@@ -681,6 +681,7 @@ class OracleMT19937Clone(Oracle):
     The attacker's goal is to clone the state generator,
     by using the previously output state.
     """
+
     def __init__(self):
         super().__init__()
         self._mt_prng = matasano.prng.MT19937(
@@ -709,7 +710,7 @@ class OracleMT19937Clone(Oracle):
         truth = [
             self._mt_prng.extract_number()
             for _ in range(10)
-        ]
+            ]
         assert len(truth) == len(guess)
         return all(truth[i] == g for i, g in enumerate(guess))
 
@@ -791,3 +792,64 @@ class OracleMT19937Stream(Oracle):
         :param args: An iterable of bytes.
         """
         return super().experiment(args)
+
+
+class OracleRandomAccessCTR(Oracle):
+
+    """
+    Generate a random AES key.
+    Encrypt specified plaintext.
+    Expose a function to edit a single portion of the plaintext.
+
+    The attacker's goal is to discover the stored plaintext.
+    """
+
+    def __init__(self, plaintext: bytes):
+        super().__init__()
+        assert plaintext
+
+        self._consistent_key = random_aes_key()
+        self._original_plaintext = plaintext
+        self._plaintext = bytearray(plaintext)
+        self._guessed = False
+
+    def guess(self, guess: bytes) -> bool:
+        """
+        Check whether the attacker's guess is correct.
+
+        :param guess: The attacker's guess.
+        :return: True if attacker correctly guesses.
+        """
+        assert guess
+
+        if self._guessed:
+            raise CheatingException(
+                "You can only guess once."
+            )
+
+        self._guessed = True
+        return guess == self._original_plaintext
+
+    def challenge(self) -> bytes:
+        """
+        Return the stored ciphertext to the caller.
+        """
+        return matasano.blocks.aes_ctr(
+            self._consistent_key, bytes(self._plaintext)
+        )
+
+    def experiment(self, offset: int, new_char: int) -> bytes:
+        """
+        Modify the plaintext character at offset position,
+        with new_char.
+        Return the new ciphertext.
+
+        :param offset: The offset of the byte to be modified.
+        :param new_char: The replacement byte.
+        """
+        assert 0 <= new_char <= 255
+        assert 0 <= offset < len(self._plaintext), \
+            "Wrong offset specified."
+
+        self._plaintext[offset] = new_char
+        return self.challenge()

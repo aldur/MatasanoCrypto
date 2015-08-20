@@ -14,6 +14,7 @@ import matasano.oracle
 import matasano.blocks
 import matasano.stats
 import matasano.prng
+import matasano.util
 
 
 class Attacker(object):
@@ -869,3 +870,36 @@ class AttackerMT19937Stream(Attacker):
             raise Exception("Something went wrong while brute-forcing the seed.")
 
         return self.oracle.guess(self.key)
+
+
+class AttackerRandomAccessCTR(Attacker):
+
+    """
+    Guess the Oracle's hidden plaintext.
+
+    :param oracle: The oracle to be attacked.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleRandomAccessCTR):
+        super().__init__(oracle)
+        self.discovered_plaintext = None
+
+    def attack(self) -> bool:
+        """
+        Replace the plaintext with 0s.
+        Once done, you get the exact key, and can recover the hidden plaintext.
+        """
+        challenge = self.oracle.challenge()
+
+        key = bytes(
+            self.oracle.experiment(i, 0)[i]
+            for i in range(len(challenge))
+        )
+
+        assert len(key) == len(challenge)
+        self.discovered_plaintext = matasano.util.xor(
+            challenge,
+            key
+        )
+
+        return self.oracle.guess(bytes(self.discovered_plaintext))

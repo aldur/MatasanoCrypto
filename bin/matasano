@@ -381,6 +381,23 @@ def twentyfour():
     ))
 
 
+def twentyfive():
+    """http://cryptopals.com/sets/4/challenges/25/"""
+    with open("input/25.txt", "rb") as inputFile:
+        oracle = matasano.oracle.OracleRandomAccessCTR(
+            inputFile.read()
+        )
+        attacker = matasano.attacker.AttackerRandomAccessCTR(oracle)
+        print("Please wait while brute-forcing the oracle's plaintext...")
+        attack = attacker.attack()
+        print("Discovered plaintext:\n{}".format(
+            attacker.discovered_plaintext.decode("ascii")
+        ))
+        print("The attack results was: {}.".format(
+            "success" if attack else "failure"
+        ))
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.
