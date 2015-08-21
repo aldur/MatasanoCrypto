@@ -123,7 +123,7 @@ class AttackerBitFlippingCBC(Attacker):
     manipulate the CBC cipher-text.
     """
 
-    def __init__(self, oracle: matasano.oracle.OracleBitflippingCBC):
+    def __init__(self, oracle: matasano.oracle.OracleBitflipping):
         super().__init__(oracle)
         self.prefix_len = 32  # The len of the string prefixed
 
@@ -903,3 +903,40 @@ class AttackerRandomAccessCTR(Attacker):
         )
 
         return self.oracle.guess(bytes(self.discovered_plaintext))
+
+
+class AttackerBitFlippingCTR(Attacker):
+    """
+    The attacker against the Bit Flipping CTR Oracle.
+    Forge a byte buffer such that, once encrypted,
+    will be manipulated in order to create a user
+    having admin rights (i.e. containing the string
+        ";admin=true;"
+    )
+
+    We know for sure that the oracle escapes the meta
+    characters ";" and "=".
+    As a consequence, we won't use them, and we'll
+    manipulate the CTR cipher-text.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleBitflipping):
+        super().__init__(oracle)
+        self.prefix_len = 32
+
+    def attack(self) -> bool:
+        """
+        Perform the attack against the oracle.
+        :return: True if the attack was successful.
+        """
+        trap = bytearray(b"foo;admin=true")
+        indexes = (trap.index(b";"), trap.index(b"="))
+        for i in indexes:
+            trap[i] ^= 1
+        trap = bytes(trap)
+
+        cipher = bytearray(self.oracle.experiment(trap))
+        for i in indexes:
+            cipher[self.prefix_len + i] ^= 1
+
+        return self.oracle.guess(bytes(cipher))

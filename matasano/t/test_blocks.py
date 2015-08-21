@@ -121,7 +121,7 @@ class BlocksTestCase(unittest.TestCase):
         b = "00foobarfoobar00".encode("ascii")
 
         self.assertEqual(
-            f(key, f(key, b)),
+            f(key, f(key, b)[0])[0],
             b
         )
 

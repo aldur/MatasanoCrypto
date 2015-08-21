@@ -266,7 +266,9 @@ def fifteen():
 
 def sixteen():
     """http://cryptopals.com/sets/2/challenges/16/"""
-    oracle = matasano.oracle.OracleBitflippingCBC()
+    oracle = matasano.oracle.OracleBitflipping(
+        matasano.blocks.aes_cbc, needs_padding=True
+    )
     attacker = matasano.attacker.AttackerBitFlippingCBC(oracle)
 
     attack = attacker.attack()
@@ -304,7 +306,7 @@ def eighteen():
     print("The decryption produced: \n{}.".format(
         matasano.blocks.aes_ctr(
             key, b
-        )
+        )[0]
     ))
 
 
@@ -396,6 +398,19 @@ def twentyfive():
         print("The attack results was: {}.".format(
             "success" if attack else "failure"
         ))
+
+
+def twentysix():
+    """http://cryptopals.com/sets/4/challenges/26/"""
+    oracle = matasano.oracle.OracleBitflipping(
+        matasano.blocks.aes_ctr
+    )
+    attacker = matasano.attacker.AttackerBitFlippingCTR(oracle)
+
+    attack = attacker.attack()
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
 
 
 def _create_parser() -> argparse.ArgumentParser:

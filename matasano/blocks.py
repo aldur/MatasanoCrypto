@@ -211,14 +211,16 @@ def aes_cbc(
 def aes_ctr(
         key: bytes,
         b: bytes,
-        nonce: int=0
+        nonce: int=0,
+        decrypt: bool=False,
 ) -> bytes:
     """AES CTR mode.
 
     :param key: The cipher key.
     :param b: The buffer to be encrypted/decrypted.
     :param nonce: The nonce to be used (defaults to 0).
-    :returns: The encrypted/decrypted buffer.
+    :param decrypt: Ignored. Used for compatibility with other crypto-functions.
+    :returns: The encrypted/decrypted buffer and the nonce.
     """
     assert len(key) % 16 == 0, \
         "Got wrong key size {}".format(len(key))
@@ -242,7 +244,7 @@ def aes_ctr(
             aes.encrypt(nonce + ctr)[:len(block)]
         )
 
-    return result
+    return result, nonce
 
 
 def mt19937_stream(

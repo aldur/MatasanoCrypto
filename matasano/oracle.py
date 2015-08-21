@@ -228,7 +228,7 @@ class OracleProfileForUser(Oracle):
         return super().challenge(args)
 
 
-class OracleBitflippingCBC(Oracle):
+class OracleBitflipping(Oracle):
     """
     An encryption oracle that takes an arbitrary string,
     prepends it with:
@@ -241,10 +241,21 @@ class OracleBitflippingCBC(Oracle):
 
     The attacker's goal is to forge a string such that,
     once decrypted, it contains ";admin=true"
+
+    :param encryption_function: The function used to encrypt.
+    :param needs_padding: Whether to pad the plaintext before encryption.
     """
 
-    def __init__(self):
+    def __init__(self, encryption_function, needs_padding: bool=False):
         super(Oracle, self).__init__()
+        assert encryption_function
+
+        """
+        Store the encryption function.
+        """
+        self.needs_padding = needs_padding
+        self.encryption_function = encryption_function
+
         """
         This is a consistent AES key.
         It is the same for the whole module lifetime,
@@ -289,9 +300,11 @@ class OracleBitflippingCBC(Oracle):
             input_string.decode("ascii"), self._meta
         ).encode("ascii")
         input_string = self._prefix + input_string + self._suffix
-        input_string = matasano.blocks.pkcs(input_string, 16)
 
-        ciphertext, _ = matasano.blocks.aes_cbc(
+        if self.needs_padding:
+            input_string = matasano.blocks.pkcs(input_string, 16)
+
+        ciphertext, _ = self.encryption_function(
             self._consistent_key,
             input_string
         )
@@ -306,10 +319,10 @@ class OracleBitflippingCBC(Oracle):
         :return: True on admin user forging.
         """
         if self._guess:
-            raise CheatingException("Attacker can only guess once!")
+            raise CheatingException("Attackers can only guess once!")
         self._guess = True
 
-        payload, _ = matasano.blocks.aes_cbc(
+        payload, _ = self.encryption_function(
             self._consistent_key,
             guess,
             decrypt=True
@@ -584,7 +597,7 @@ class OracleFixedNonceCTR(Oracle):
             matasano.blocks.aes_ctr(
                 self._consistent_key,
                 b
-            ) for b in self._buffers
+            )[0] for b in self._buffers
         )
 
     def experiment(self, *args: bytes) -> bytes:
@@ -836,7 +849,7 @@ class OracleRandomAccessCTR(Oracle):
         """
         return matasano.blocks.aes_ctr(
             self._consistent_key, bytes(self._plaintext)
-        )
+        )[0]
 
     def experiment(self, offset: int, new_char: int) -> bytes:
         """
