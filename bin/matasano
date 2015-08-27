@@ -413,6 +413,17 @@ def twentysix():
     ))
 
 
+def twentyseven():
+    """http://cryptopals.com/sets/4/challenges/27/"""
+    oracle = matasano.oracle.OracleCBCKeyIV()
+    attacker = matasano.attacker.AttackerCBCKeyIV(oracle)
+
+    attack = attacker.attack()
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.

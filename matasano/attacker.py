@@ -940,3 +940,55 @@ class AttackerBitFlippingCTR(Attacker):
             cipher[self.prefix_len + i] ^= 1
 
         return self.oracle.guess(bytes(cipher))
+
+
+class AttackerCBCKeyIV(Attacker):
+
+    """
+    The oracle is using AES CBC.
+    The IV is the same key.
+    The attacker's goal is to discover the key.
+
+    :param oracle:
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleCBCKeyIV):
+        super().__init__(oracle)
+
+    def attack(self) -> bool:
+        """
+        Acquire the challenge.
+        Tamper it.
+        Ask the oracle to decrypt and decode it.
+        On error the oracle will raise a proper exception,
+        containing the decoded plaintext.
+        XORring two blocks of such plaintext will
+        reveal the key.
+        """
+        challenge = bytearray(self.oracle.challenge())
+
+        r = matasano.blocks.bytes_in_block(16, 1)
+        for i in range(r.start, r.stop):
+            challenge[i] = 0
+        r = matasano.blocks.bytes_in_block(16, 2)
+        for i in range(r.start, r.stop):
+            challenge[i] = challenge[i - 16 * 2]
+
+        try:
+            self.oracle.experiment(
+                bytes(challenge)
+            )
+        except matasano.oracle.BadAsciiPlaintextException as e:
+            p = e.recovered_plaintext
+            first = p[matasano.blocks.bytes_in_block(16, 0)]
+            third = p[matasano.blocks.bytes_in_block(16, 2)]
+
+            return self.oracle.guess(
+                matasano.util.xor(
+                    first,
+                    third
+                )
+            )
+
+        assert False, \
+            "Something went wrong while attacking the oracle."

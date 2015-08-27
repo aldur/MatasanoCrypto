@@ -27,6 +27,16 @@ class CheatingException(Exception):
     pass
 
 
+class BadAsciiPlaintextException(Exception):
+    """
+    Thrown if an error occurs while decoding plaintext to ASCII.
+    """
+
+    def __init__(self, recovered_plaintext: bytes):
+        super().__init__()
+        self.recovered_plaintext = recovered_plaintext
+
+
 class Oracle(object):
     """
     The base oracle abstract class.
@@ -866,3 +876,77 @@ class OracleRandomAccessCTR(Oracle):
 
         self._plaintext[offset] = new_char
         return self.challenge()
+
+
+class OracleCBCKeyIV(Oracle):
+
+    """
+    Encrypt by using AES CBC and a random
+    sequence of bytes both as key and as IV.
+
+    The attacker's goal is to discover the key.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._consistent_key = random_aes_key()
+
+        self._guessed = False
+
+    def guess(self, guess: bytes) -> bool:
+        """
+        Compare the attacker's guess on the key against
+        the stored one.
+
+        :param guess: The attacker's guess.
+        """
+        if self._guessed:
+            raise CheatingException(
+                "You can only guess once."
+            )
+        self._guessed = True
+        return self._consistent_key == guess
+
+    def experiment(self, ciphertext: bytes) -> str:
+        """
+        Decrypt the ciphertext and decode it to ascii.
+
+        :param ciphertext: The ciphertext to be decrypted.
+        :return: The decrypted and decoded ciphertext.
+        """
+        assert len(ciphertext) % 16 == 0
+
+        coded_plaintext, _ = matasano.blocks.aes_cbc(
+            self._consistent_key,
+            ciphertext,
+            decrypt=True,
+            iv=self._consistent_key
+        )
+
+        error = False
+        plaintext = ""
+        for i in range(len(coded_plaintext) // 16):
+            b = coded_plaintext[matasano.blocks.bytes_in_block(16, i)]
+            try:
+                plaintext += b.decode("ascii")
+            except UnicodeDecodeError:
+                error = True
+
+        if error:
+            raise BadAsciiPlaintextException(coded_plaintext)
+
+        return plaintext
+
+    def challenge(self) -> bytes:
+        """
+        Encrypt a random ascii plaintext exactly three blocks long.
+
+        :return: The encryption of the plaintext.
+        """
+        return matasano.blocks.aes_cbc(
+            self._consistent_key,
+            bytes(
+                random.randint(0, 127) for _ in range(16 * 3)
+            ),
+            iv=self._consistent_key
+        )[0]
