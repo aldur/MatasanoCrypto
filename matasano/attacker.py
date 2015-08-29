@@ -15,6 +15,7 @@ import matasano.blocks
 import matasano.stats
 import matasano.prng
 import matasano.util
+import matasano.hash
 
 
 class Attacker(object):
@@ -992,3 +993,58 @@ class AttackerCBCKeyIV(Attacker):
 
         assert False, \
             "Something went wrong while attacking the oracle."
+
+
+class AttackerSHA1KeyedMac(Attacker):
+    """
+    Ask the oracle for the MAC of a message.
+    Clone the SHA1 inner register status,
+    and glue pad the message.
+    Forge a new MAC for any new message whose prefix
+    is the previously built string.
+
+    :param oracle: The oracle to be attacked.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleSHA1KeyedMac):
+        super().__init__(oracle)
+        self.forged_message = None
+        self.forged_mac = None
+
+    def attack(self) -> bool:
+        """
+        Attack the oracle by forging a MAc
+        for an unseen string.
+
+        :return: True if the attack succeeds.
+        """
+        message = (
+            b"comment1=cooking%20MCs;userdata=foo;"
+            b"comment2=%20like%20a%20pound%20of%20bacon"
+        )
+        trap = b";admin=true"
+
+        challenge = self.oracle.challenge(message)
+        assert len(challenge) == 5 * 4  # bytes
+
+        import struct
+        h0, h1, h2, h3, h4 = struct.unpack(
+            ">5I", challenge
+        )
+
+        self.forged_message = message
+        self.forged_message += matasano.hash.sha1_glue_padding(
+            b"0" * self.oracle.key_len + message
+        )
+        self.forged_message += trap
+
+        self.forged_mac = matasano.hash.sha1(
+            trap,
+            h0, h1, h2, h3, h4,
+            len(self.forged_message) + self.oracle.key_len
+        )
+
+        return self.oracle.guess(
+            self.forged_message,
+            self.forged_mac
+        )

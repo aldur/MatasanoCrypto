@@ -1,5 +1,6 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
+import matasano.mac
 
 __author__ = 'aldur'
 
@@ -18,6 +19,7 @@ import time
 import matasano.blocks
 import matasano.util
 import matasano.prng
+import matasano.mac
 
 
 class CheatingException(Exception):
@@ -950,3 +952,58 @@ class OracleCBCKeyIV(Oracle):
             ),
             iv=self._consistent_key
         )[0]
+
+
+class OracleSHA1KeyedMac(Oracle):
+    """
+    An oracle that generates a MAC for a given message,
+    by using the secret_key_prefixed SHA1 function.
+
+    The attacker's goal is to forge a valid MAC for a
+    never seen message.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._secret_key = random_aes_key()
+        self.key_len = len(self._secret_key)  # An attacker could brute-force it
+        self._messages = set()
+
+    def challenge(self, message: bytes) -> bytes:
+        """
+        Return a MAC of the message.
+
+        :param message: The input message.
+        :return: A MAC of the message.
+        """
+        self._messages.add(message)
+        return matasano.mac.sha1_secret_prefix(
+            self._secret_key,
+            message
+        )
+
+    def guess(self, message: bytes, guess: bytes) -> bool:
+        """
+        Check if the given MAC is a valid signature
+        of the message.
+
+        :param message: A never-seen-before message.
+        :param guess: The attacker-forged MAC for the message.
+        """
+        if message in self._messages:
+            raise CheatingException(
+                "You have to forge a MAC for a new message!"
+            )
+
+        truth = self.challenge(
+            message
+        )
+
+        return truth == guess
+
+    def experiment(self, *args: bytes) -> bytes:
+        """
+        This oracle doesn't provide experiments.
+        :param args: An iterable of bytes.
+        """
+        return super().experiment(args)

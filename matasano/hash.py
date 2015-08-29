@@ -19,40 +19,68 @@ def _left_rotate(n: int, b: int) -> int:
     return ((n << b) | (n >> (32 - b))) & 0xffffffff
 
 
-def sha1(b: bytes) -> bytes:
+def sha1_glue_padding(
+        message: bytes,
+        byte_len: int=None
+) -> bytes:
+    """
+    The SHA1 hashing function pads the initial message
+    with the bit \x80, k bits such that the resulting length
+    is congruent to 448 (mod 512) and finally the message length.
+
+    :param message: The input buffer.
+    :param byte_len: The length to be appended in the padding.
+    :return: The glue-padded input buffer.
+    """
+    if byte_len is None:
+        byte_len = len(message)
+    bit_len = byte_len * 8
+
+    # append the bit '1' to the message
+    padding = b'\x80'
+
+    # append 0 <= k < 512 bits '0', so that the resulting message length (in bits)
+    #    is congruent to 448 (mod 512)
+    padding += b'\x00' * ((56 - (byte_len + 1) % 64) % 64)
+
+    # append length of message (before pre-processing), in bits, as 64-bit big-endian integer
+    padding += struct.pack(b'>Q', bit_len)
+
+    return padding
+
+
+def sha1(
+        message: bytes,
+        h0: int=0x67452301,
+        h1: int=0xEFCDAB89,
+        h2: int=0x98BADCFE,
+        h3: int=0x10325476,
+        h4: int=0xC3D2E1F0,
+        byte_len: int=None
+) -> bytes:
     """
     SHA-1 Hashing Function.
     Credits: https://github.com/ajalt/python-sha1/blob/master/sha1.py
 
-    :param b: The input buffer.
+    :param message: The input buffer.
+    :param h0: The initial SHA1 register #0 value.
+    :param h1: The initial SHA1 register #1 value.
+    :param h2: The initial SHA1 register #2 value.
+    :param h3: The initial SHA1 register #3 value.
+    :param h4: The initial SHA1 register #4 value.
+    :param byte_len: The message length to be put in the padding.
     :return: The SHA-1 digest of the input message.
     """
-    # Initialize variables:
-    h0 = 0x67452301
-    h1 = 0xEFCDAB89
-    h2 = 0x98BADCFE
-    h3 = 0x10325476
-    h4 = 0xC3D2E1F0
-
     # Pre-processing:
-    original_byte_len = len(b)
-    original_bit_len = original_byte_len * 8
-    # append the bit '1' to the message
-    b += b'\x80'
+    message += sha1_glue_padding(message, byte_len)
 
-    # append 0 <= k < 512 bits '0', so that the resulting message length (in bits)
-    #    is congruent to 448 (mod 512)
-    b += b'\x00' * ((56 - (original_byte_len + 1) % 64) % 64)
-
-    # append length of message (before pre-processing), in bits, as 64-bit big-endian integer
-    b += struct.pack(b'>Q', original_bit_len)
     # Process the message in successive 512-bit chunks:
     # break message into 512-bit chunks
-    for i in range(0, len(b), 64):
+    for i in range(0, len(message), 64):
         w = [0] * 80
         # break chunk into sixteen 32-bit big-endian words w[i]
         for j in range(16):
-            w[j] = struct.unpack(b'>I', b[i + j * 4:i + j * 4 + 4])[0]
+            w[j] = struct.unpack(b'>I', message[i + j * 4:i + j * 4 + 4])[0]
         # Extend the sixteen 32-bit words into eighty 32-bit words:
         for j in range(16, 80):
             w[j] = _left_rotate(w[j - 3] ^ w[j - 8] ^ w[j - 14] ^ w[j - 16], 1)
