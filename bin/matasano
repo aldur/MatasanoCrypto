@@ -11,6 +11,7 @@ import matasano.blocks
 import matasano.oracle
 import matasano.attacker
 import matasano.prng
+import matasano.mac
 
 import base64
 import argparse
@@ -415,6 +416,30 @@ def twentysix():
 
 def twentyseven():
     """http://cryptopals.com/sets/4/challenges/27/"""
+    oracle = matasano.oracle.OracleCBCKeyIV()
+    attacker = matasano.attacker.AttackerCBCKeyIV(oracle)
+
+    attack = attacker.attack()
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
+
+
+def twentyeight():
+    """http://cryptopals.com/sets/4/challenges/28/"""
+    key = b"SECRET"
+    message = b"MESSAGE"
+
+    import binascii
+    print(
+        "SHA1({} | {}) = {}".format(
+            key.decode("ascii"),
+            message.decode("ascii"),
+            binascii.hexlify(
+                matasano.mac.sha1_secret_prefix(key, message)
+            ).decode("ascii")
+        )
+    )
     oracle = matasano.oracle.OracleCBCKeyIV()
     attacker = matasano.attacker.AttackerCBCKeyIV(oracle)
 
