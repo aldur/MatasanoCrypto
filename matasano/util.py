@@ -7,6 +7,8 @@ __author__ = "aldur"
 
 import base64
 import re
+import struct
+import functools
 
 
 def hex_to_b64(hex_input: bytes) -> bytes:
@@ -102,7 +104,7 @@ def key_value_parsing(s: str) -> dict:
         kv.split("=")[0]: kv.split("=")[1]
         for kv in s.split("&")
         if kv.count("=")
-        }
+    }
 
 
 def dictionary_to_kv(d: dict) -> str:
@@ -126,3 +128,86 @@ def int_32_lsb(x: int):
     :return: The 32 LSBits of x.
     """
     return int(0xFFFFFFFF & x)
+
+
+def _int_bytes_conversion(
+        argument,
+        is_big_endian: bool,
+        format_specifier: str,
+        is_packing: bool
+):
+    """
+    Encode/decode input to/from big/little endian bytes.
+
+    :param argument: The argument to be encoded/decoded.
+    :param is_big_endian: Whether to encode/decode in big endianess.
+    :param format_specifier: The single struct element format specifier.
+    :param is_packing: Whether to pack or unpack.
+    """
+    return struct.pack(
+        "{}{}{}".format(
+            ">" if is_big_endian else "<",
+            len(argument),
+            format_specifier,
+        ), *argument
+    ) if is_packing else struct.unpack(
+        "{}{}{}".format(
+            ">" if is_big_endian else "<",
+            len(argument) // struct.calcsize(format_specifier),
+            format_specifier,
+        ), argument
+    )
+
+
+to_big_endian_unsigned_ints = functools.partial(
+    _int_bytes_conversion,
+    is_big_endian=True,
+    format_specifier="I",
+    is_packing=True
+)
+
+to_big_endian_unsigned_longs = functools.partial(
+    _int_bytes_conversion,
+    is_big_endian=True,
+    format_specifier="Q",
+    is_packing=True
+)
+
+to_little_endian_unsigned_ints = functools.partial(
+    _int_bytes_conversion,
+    is_big_endian=False,
+    format_specifier="I",
+    is_packing=True
+)
+
+to_little_endian_unsigned_longs = functools.partial(
+    _int_bytes_conversion,
+    is_big_endian=False,
+    format_specifier="Q",
+    is_packing=True
+)
+
+from_little_endian_unsigned_ints = functools.partial(
+    _int_bytes_conversion,
+    is_big_endian=False,
+    format_specifier="I",
+    is_packing=False
+)
+
+from_big_endian_unsigned_ints = functools.partial(
+    _int_bytes_conversion,
+    is_big_endian=True,
+    format_specifier="I",
+    is_packing=False
+)
+
+
+def left_rotate(n: int, b: int) -> int:
+    """
+    Left rotate the input by b.
+
+    :param n: The input.
+    :param b: The rotation factor.
+    :return: The input after applying rotation.
+    """
+    return ((n << b) | ((n & 0xffffffff) >> (32 - b))) & 0xffffffff

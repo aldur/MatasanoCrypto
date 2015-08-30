@@ -1026,22 +1026,22 @@ class AttackerSHA1KeyedMac(Attacker):
 
         challenge = self.oracle.challenge(message)
         assert len(challenge) == 5 * 4  # bytes
+        state = matasano.util.from_big_endian_unsigned_ints(challenge)
 
-        import struct
-        h0, h1, h2, h3, h4 = struct.unpack(
-            ">5I", challenge
-        )
-
-        self.forged_message = message
-        self.forged_message += matasano.hash.sha1_glue_padding(
+        # Get the padded message and add the trap suffix.
+        padded_message = matasano.hash.sha1_pad(
             b"0" * self.oracle.key_len + message
         )
-        self.forged_message += trap
+        padded_message += trap
 
-        self.forged_mac = matasano.hash.sha1(
-            trap,
-            h0, h1, h2, h3, h4,
-            len(self.forged_message) + self.oracle.key_len
+        # Remove unknown key.
+        self.forged_message = padded_message[self.oracle.key_len:]
+
+        # Forge the MAC.
+        self.forged_mac = matasano.hash.SHA1(
+            message=trap,
+            state=state,
+            fake_byte_len=len(padded_message)
         )
 
         return self.oracle.guess(

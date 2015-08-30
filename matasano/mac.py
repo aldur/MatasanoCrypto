@@ -17,6 +17,6 @@ def sha1_secret_prefix(key: bytes, message: bytes) -> bytes:
     :param message: The message to be authenticated.
     :return: The message authentication code.
     """
-    return matasano.hash.sha1(
+    return matasano.hash.SHA1(
         key + message
     )
