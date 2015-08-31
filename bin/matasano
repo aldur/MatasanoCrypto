@@ -503,6 +503,11 @@ def thirtyone():
     ))
 
 
+def thirtytwo():
+    """http://cryptopals.com/sets/4/challenges/32/"""
+    return thirtyone()
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.
