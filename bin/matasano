@@ -12,6 +12,7 @@ import matasano.oracle
 import matasano.attacker
 import matasano.prng
 import matasano.mac
+import matasano.public
 
 import base64
 import binascii
@@ -506,6 +507,14 @@ def thirtyone():
 def thirtytwo():
     """http://cryptopals.com/sets/4/challenges/32/"""
     return thirtyone()
+
+
+def thirtythree():
+    """http://cryptopals.com/sets/5/challenges/33/"""
+    private, public = matasano.public.dh_keys()
+    print("Generated DH keys: {}, {}.".format(
+        private, public
+    ))
 
 
 def _create_parser() -> argparse.ArgumentParser:
