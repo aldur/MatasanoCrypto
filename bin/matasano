@@ -486,6 +486,23 @@ def thirty():
     ))
 
 
+def thirtyone():
+    """http://cryptopals.com/sets/4/challenges/31/"""
+    oracle = matasano.oracle.OracleRemoteSHA1HMac()
+    attacker = matasano.attacker.AttackerRemoteSHA1HMac(oracle)
+
+    print("Please wait while brute-forcing the MAC.")
+    attack = attacker.attack()
+    print(
+        "Forged MAC: {}.".format(
+            binascii.hexlify(attacker.forged_mac)
+        )
+    )
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.

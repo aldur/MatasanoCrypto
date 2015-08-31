@@ -8,7 +8,9 @@ The attacker tools will implemented here.
 """
 
 import abc
+import binascii
 import time
+import collections
 
 import matasano.oracle
 import matasano.blocks
@@ -1087,4 +1089,75 @@ class AttackerMD4KeyedMac(AttackerKeyedMac):
             matasano.hash.MD4,
             matasano.hash.md4_pad,
             matasano.util.from_little_endian_unsigned_ints
+        )
+
+
+class AttackerRemoteSHA1HMac(Attacker):
+    """
+    Exploit the timing of the remote server checks
+    to brute-force the oracle's secret key.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleRemoteSHA1HMac):
+        super().__init__(oracle)
+        self.forged_mac = None
+
+    def attack(self) -> bool:
+        """
+        The oracle is up and running.
+        We query the remote server and keep
+        the byte whose average response time has been worst.
+        This code is not perfect, but further improvements
+        would be un-meaningful.
+        """
+        message = b"a"
+
+        self.forged_mac = bytearray(
+            len(
+                matasano.oracle.OracleRemoteSHA1HMac.mac_function(b"key", message)
+            )
+        )
+        sleep_time = matasano.oracle.OracleRemoteSHA1HMac.sleep_time
+
+        for i, _ in enumerate(self.forged_mac):
+            times = dict()
+
+            for b in range(256):
+                self.forged_mac[i] = b
+
+                start = time.time()
+                self.oracle.experiment(message, self.forged_mac)
+                stop = time.time()
+
+                times[b] = stop - start
+
+            times = {
+                k: v for k, v in times.items()
+                if v >= (i + 1) * sleep_time
+            }
+
+            while len(times) > 1:
+                _times = dict()
+
+                for b in times.keys():
+                    self.forged_mac[i] = b
+
+                    start = time.time()
+                    self.oracle.experiment(message, self.forged_mac)
+                    stop = time.time()
+
+                    _times[b] = stop - start
+
+                times = {
+                    k: v for k, v in _times.items()
+                    if v >= (i + 1) * sleep_time
+                }
+                time.sleep(5)
+
+            self.forged_mac[i] = list(times.keys())[0]
+            time.sleep(5)
+
+        return self.oracle.guess(
+            message,
+            self.forged_mac
         )

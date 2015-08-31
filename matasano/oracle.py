@@ -10,10 +10,16 @@ Random generations, games, and so on.
 
 import random
 import base64
+import binascii
 import abc
 import re
 import collections
 import time
+import http.server
+import http.client
+import urllib.parse
+import threading
+import socketserver
 
 import matasano.blocks
 import matasano.util
@@ -1025,3 +1031,157 @@ class OracleMD4KeyedMac(OracleKeyedMac):
 
     def __init__(self):
         super().__init__(matasano.mac.md4_secret_prefix)
+
+
+class OracleRemoteSHA1HMac(Oracle):
+    """
+    An oracle that forwards the SHA1_HMAC
+    signature checking to a remote server.
+    """
+    sleep_time = 0.005
+    mac_function = matasano.mac.hmac_sha1
+
+    @staticmethod
+    def insecure_check(
+            key: bytes,
+            message: bytes,
+            signature: bytes
+    ) -> bool:
+        """
+        Check the provided signature against the correct one.
+
+        :param key: The key used by the MAC function.
+        :param message: The message to be verified.
+        :param signature: The provided signature.
+        :return: True if the signature is correct.
+        """
+        truth = OracleRemoteSHA1HMac.mac_function(
+            key,
+            message
+        )
+
+        if len(truth) != len(signature):
+            return False
+
+        for i, b in enumerate(truth):
+            if b != signature[i]:
+                return False
+            time.sleep(OracleRemoteSHA1HMac.sleep_time)
+
+        return True
+
+    class SignatureCheckHandler(http.server.BaseHTTPRequestHandler):
+        """
+        Simple HTTP handler that gets the needed parameters
+        from the GET request and checks that the contained signature
+        is indeed valid.
+        """
+
+        def __init__(self, key: bytes, *args):
+            self._key = key
+            super(http.server.BaseHTTPRequestHandler, self).__init__(*args)
+
+        def do_GET(self):
+            """
+            Handle GET requests.
+            """
+            params = urllib.parse.parse_qs(
+                urllib.parse.urlparse(self.path).query
+            )
+
+            if "file" not in params or "signature" not in params:
+                self.send_response(http.client.INTERNAL_SERVER_ERROR)
+                self.end_headers()
+                return
+
+            status = http.client.OK if OracleRemoteSHA1HMac.insecure_check(
+                self._key,
+                params["file"][0].encode("ascii"),
+                bytearray.fromhex(
+                    params["signature"][0]
+                )
+            ) else http.client.BAD_REQUEST
+            self.send_response_only(status)
+            self.end_headers()
+
+    class ThreadingSimpleServer(
+        socketserver.ThreadingMixIn,
+        http.server.HTTPServer
+    ):
+        """
+        A simple threaded HTTP server.
+        """
+        pass
+
+    def __init__(self):
+        super().__init__()
+        self._remote_port = 8000
+
+        self._consistent_key = random_aes_key()
+
+        self.http_thread = None
+        self.start_http_server()
+
+        self.connection = http.client.HTTPConnection(
+            "localhost",
+            self._remote_port
+        )
+
+    def start_http_server(self):
+        """
+        Start the HTTP server in a separate thread.
+        """
+        httpd = OracleRemoteSHA1HMac.ThreadingSimpleServer(
+            ("", self._remote_port),
+            lambda *args: OracleRemoteSHA1HMac.SignatureCheckHandler(
+                self._consistent_key, *args
+            )
+        )
+        self.http_thread = threading.Thread(
+            target=httpd.serve_forever
+        )
+        self.http_thread.daemon = True
+        self.http_thread.start()
+
+    def guess(self, message: bytes, signature: bytes) -> bool:
+        """
+        Return True whether the attacker has forged a valid signature
+        for the message.
+
+        :param message: The message.
+        :param signature: The MAC forged by the attacker.
+        :return: True on correct forgery.
+        """
+        truth = OracleRemoteSHA1HMac.mac_function(
+            self._consistent_key, message
+        )
+        return truth == signature
+
+    def challenge(self, *args: bytes) -> bytes:
+        """
+        This oracle doesn't provide a challenge.
+
+        :param args: An iterable of bytes.
+        """
+        return super().challenge(args)
+
+    def experiment(self, message: bytes, signature: bytes) -> bool:
+        """
+        Forward the signature verification message to the remote server.
+        :param message: The message to be verified.
+        :param signature: The MAC.
+        """
+        self.connection.request(
+            "GET",
+            "/foo?file={}&signature={}".format(
+                message.decode("ascii"),
+                binascii.hexlify(signature).decode("ascii")
+            )
+        )
+
+        response = self.connection.getresponse()
+
+        if response.status == http.client.OK:
+            return True
+        else:
+            return False
