@@ -221,9 +221,16 @@ def _md4_compress(block: bytes, state: list=None) -> list:
 """
 The full fledged MD4 function.
 """
+# Convert length to Little Endian 64-bit word
+_md4_length_to_bytes = \
+    lambda length: matasano.util.to_little_endian_unsigned_longs([length])
 MD4 = _make_md_hash_64(
     compress=_md4_compress,
     state_to_hash=matasano.util.to_little_endian_unsigned_ints,
-    length_to_bytes=lambda length: matasano.util.to_little_endian_unsigned_longs([length])
+    length_to_bytes=_md4_length_to_bytes
+)
+md4_pad = functools.partial(
+    _md_pad_64,
+    length_to_bytes=_md4_length_to_bytes
 )
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
-import matasano.mac
 
 __author__ = 'aldur'
 
@@ -820,7 +819,6 @@ class OracleMT19937Stream(Oracle):
 
 
 class OracleRandomAccessCTR(Oracle):
-
     """
     Generate a random AES key.
     Encrypt specified plaintext.
@@ -881,7 +879,6 @@ class OracleRandomAccessCTR(Oracle):
 
 
 class OracleCBCKeyIV(Oracle):
-
     """
     Encrypt by using AES CBC and a random
     sequence of bytes both as key and as IV.
@@ -954,17 +951,18 @@ class OracleCBCKeyIV(Oracle):
         )[0]
 
 
-class OracleSHA1KeyedMac(Oracle):
+class OracleKeyedMac(Oracle):
     """
     An oracle that generates a MAC for a given message,
-    by using the secret_key_prefixed SHA1 function.
+    by using the secret_key_prefixed and the specified MAC function.
 
     The attacker's goal is to forge a valid MAC for a
     never seen message.
     """
 
-    def __init__(self):
+    def __init__(self, mac_function):
         super().__init__()
+        self.mac_function = mac_function
         self._secret_key = random_aes_key()
         self.key_len = len(self._secret_key)  # An attacker could brute-force it
         self._messages = set()
@@ -977,7 +975,7 @@ class OracleSHA1KeyedMac(Oracle):
         :return: A MAC of the message.
         """
         self._messages.add(message)
-        return matasano.mac.sha1_secret_prefix(
+        return self.mac_function(
             self._secret_key,
             message
         )
@@ -1007,3 +1005,23 @@ class OracleSHA1KeyedMac(Oracle):
         :param args: An iterable of bytes.
         """
         return super().experiment(args)
+
+
+class OracleSHA1KeyedMac(OracleKeyedMac):
+    """
+    An Oracle that generates a MAC by using the SHA1 hash function,
+    prefixed with a key.
+    """
+
+    def __init__(self):
+        super().__init__(matasano.mac.sha1_secret_prefix)
+
+
+class OracleMD4KeyedMac(OracleKeyedMac):
+    """
+    An Oracle that generates a MAC by using the MD4 hash function,
+    prefixed with a key.
+    """
+
+    def __init__(self):
+        super().__init__(matasano.mac.md4_secret_prefix)

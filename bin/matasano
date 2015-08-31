@@ -468,6 +468,24 @@ def twentynine():
     ))
 
 
+def thirty():
+    """http://cryptopals.com/sets/4/challenges/30/"""
+    oracle = matasano.oracle.OracleMD4KeyedMac()
+    attacker = matasano.attacker.AttackerMD4KeyedMac(oracle)
+
+    attack = attacker.attack()
+    print(
+        "Forged message: {}.\n"
+        "Forged MAC: {}.".format(
+            attacker.forged_message,
+            binascii.hexlify(attacker.forged_mac)
+        )
+    )
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.

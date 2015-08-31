@@ -276,7 +276,7 @@ class AttackerByteAtATimeEcb(Attacker):
                 trap + c
             )[slice_to_ith_block]: c
             for c in (bytes(chr(c), "ascii") for c in range(0, 128))
-        }
+            }
 
         """
         Now we simply remove the already unhidden string from the trap.
@@ -454,7 +454,7 @@ class AttackerHarderByteAtATimeEcb(AttackerByteAtATimeEcb):
                 trap + c
             )[slice_to_ith_block]: c
             for c in (bytes(chr(c), "ascii") for c in range(0, 128))
-        }
+            }
 
         """
         Now we simply remove the already unhidden string from the trap.
@@ -568,8 +568,8 @@ class AttackerCBCPadding(Attacker):
                         "Got bad _trap len {}".format(len(_trap))
 
                     if self.oracle.experiment(
-                        _trap,
-                        block
+                            _trap,
+                            block
                     ):
                         discovered.insert(0, j ^ padding_value)
                         break
@@ -620,9 +620,9 @@ class AttackerFixedNonceCTR(Attacker):
                 b[i] if len(b) > i else None  # String len differs
                 for b
                 in buffers
-            ]
+                ]
             for i in range(max_len)
-        ]
+            ]
 
         # Guess the key
         key = [
@@ -634,12 +634,12 @@ class AttackerFixedNonceCTR(Attacker):
                 )
             ))
             for b in buckets
-        ]
+            ]
         assert len(key) == len(buckets)
 
         k_used = {
             k: 0 for k in range(len(key))
-        }
+            }
 
         k = 0
         while k < len(key):
@@ -688,10 +688,10 @@ class AttackerMT19937Seed(Attacker):
         outputs = {
             matasano.prng.MT19937(seed).extract_number(): seed
             for seed in range(
-                start_time + self.oracle.sleep_min,
-                start_time + self.oracle.sleep_max + 1
-            )
-        }
+            start_time + self.oracle.sleep_min,
+            start_time + self.oracle.sleep_max + 1
+        )
+            }
 
         assert challenge in outputs, \
             "Something went wrong, can't find challenge in outputs."
@@ -830,7 +830,7 @@ class AttackerMT19937Clone(Attacker):
         challenge = [
             AttackerMT19937Clone.untemper(y)
             for y in challenge
-        ]
+            ]
         mt_prng = matasano.prng.MT19937(0)
         mt_prng.mt = challenge
 
@@ -862,8 +862,8 @@ class AttackerMT19937Stream(Attacker):
 
         for seed in range(0, 2 ** 16):
             if (matasano.blocks.mt19937_stream(
-                seed,
-                challenge
+                    seed,
+                    challenge
             ))[-len(self.oracle.known_plaintext):] == self.oracle.known_plaintext:
                 self.key = seed
                 break
@@ -874,7 +874,6 @@ class AttackerMT19937Stream(Attacker):
 
 
 class AttackerRandomAccessCTR(Attacker):
-
     """
     Guess the Oracle's hidden plaintext.
 
@@ -944,7 +943,6 @@ class AttackerBitFlippingCTR(Attacker):
 
 
 class AttackerCBCKeyIV(Attacker):
-
     """
     The oracle is using AES CBC.
     The IV is the same key.
@@ -995,19 +993,34 @@ class AttackerCBCKeyIV(Attacker):
             "Something went wrong while attacking the oracle."
 
 
-class AttackerSHA1KeyedMac(Attacker):
+class AttackerKeyedMac(Attacker):
     """
+    Attack a MD-based keyed MAC.
+
     Ask the oracle for the MAC of a message.
-    Clone the SHA1 inner register status,
+    Clone the inner hash function status,
     and glue pad the message.
     Forge a new MAC for any new message whose prefix
     is the previously built string.
 
     :param oracle: The oracle to be attacked.
+    :param hash_function: The hash function used to generate the MAC.
+    :param padding_function: The function used to pad the message.
+    :param hash_to_state: The function to retrieve the state from the hash digest.
     """
 
-    def __init__(self, oracle: matasano.oracle.OracleSHA1KeyedMac):
+    def __init__(
+            self,
+            oracle: matasano.oracle.OracleKeyedMac,
+            hash_function,
+            padding_function,
+            hash_to_state
+    ):
         super().__init__(oracle)
+        self.hash_function = hash_function
+        self.padding_function = padding_function
+        self.hash_to_state = hash_to_state
+
         self.forged_message = None
         self.forged_mac = None
 
@@ -1025,11 +1038,10 @@ class AttackerSHA1KeyedMac(Attacker):
         trap = b";admin=true"
 
         challenge = self.oracle.challenge(message)
-        assert len(challenge) == 5 * 4  # bytes
-        state = matasano.util.from_big_endian_unsigned_ints(challenge)
+        state = self.hash_to_state(challenge)
 
         # Get the padded message and add the trap suffix.
-        padded_message = matasano.hash.sha1_pad(
+        padded_message = self.padding_function(
             b"0" * self.oracle.key_len + message
         )
         padded_message += trap
@@ -1038,7 +1050,7 @@ class AttackerSHA1KeyedMac(Attacker):
         self.forged_message = padded_message[self.oracle.key_len:]
 
         # Forge the MAC.
-        self.forged_mac = matasano.hash.SHA1(
+        self.forged_mac = self.hash_function(
             message=trap,
             state=state,
             fake_byte_len=len(padded_message)
@@ -1047,4 +1059,32 @@ class AttackerSHA1KeyedMac(Attacker):
         return self.oracle.guess(
             self.forged_message,
             self.forged_mac
+        )
+
+
+class AttackerSHA1KeyedMac(AttackerKeyedMac):
+    """
+    Attack a SHA1-keyed-MAC oracle.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleSHA1KeyedMac):
+        super().__init__(
+            oracle,
+            matasano.hash.SHA1,
+            matasano.hash.sha1_pad,
+            matasano.util.from_big_endian_unsigned_ints
+        )
+
+
+class AttackerMD4KeyedMac(AttackerKeyedMac):
+    """
+    Attack a SHA1-keyed-MAC oracle.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleMD4KeyedMac):
+        super().__init__(
+            oracle,
+            matasano.hash.MD4,
+            matasano.hash.md4_pad,
+            matasano.util.from_little_endian_unsigned_ints
         )
