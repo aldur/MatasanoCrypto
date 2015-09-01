@@ -1239,3 +1239,98 @@ class EavesdropperDH(Eavesdropper, matasano.public.DHEntity):
         return self.eavesdropped_message == message
 
 
+class EavesdropperAckDH(Eavesdropper, matasano.public.DHAckEntity):
+    """
+    MITM attack against an instance of the DH protocol (with ACK).
+    Replace the group parameter g with:
+        * 1
+        * p
+        * p -1
+    """
+
+    def __init__(
+            self,
+            alice: matasano.public.DHAckEntity,
+            bob: matasano.public.DHAckEntity,
+            g: int=1
+    ):
+        super(EavesdropperAckDH, self).__init__()
+
+        self.alice, self.bob = alice, bob
+        self.eavesdropped_message = None
+        self.malicious_g = g
+
+    def set_group_parameters(self, p: int, g: int):
+        """
+        Replace the g parameter and forward to Bob.
+
+        :param p: The group modulo.
+        :param g: A primitive root of p.
+        :return: True.
+        """
+        self.bob.set_group_parameters(p, self.malicious_g)
+        return super().set_group_parameters(p, g)
+
+    def dh_protocol_respond(self, p: int, g: int, pub_a: int):
+        """
+        The usual response to the DH protocol.
+        Forward this response to Bob,
+        after replacing the public key with p.
+
+        :param p: The group modulo.
+        :param g: A primitive root of p.
+        :param pub_a: Alice's DH public key.
+        """
+        pub_bob = self.bob.dh_protocol_respond(p, self.malicious_g, pub_a)
+
+        if self.malicious_g == 1:
+            # Both Public keys are always gonna be equal to 1.
+            self._session_key = 1
+        elif self.malicious_g == p - 1:
+            """
+            ((p - 1) ^ (a * b)) mod p
+            can produce either 1 or -1.
+            It depends on whether a * b is even or not.
+            For the same reason,
+            if pub_a == p - 1, then priv_a was not even.
+            So all we need is to compare the public keys to
+            discover the session key.
+            """
+            self._session_key = p - 1 \
+                if pub_bob == p - 1 and pub_a == p - 1 \
+                else 1
+        elif self.malicious_g == p:
+            # Both Public keys are always gonna be equal to 0.
+            self._session_key = 0
+        else:
+            assert False, \
+                "Something went wrong while MITMing Alice and Bob, bad G value."
+
+        return pub_bob
+
+    def receive_and_send_back(self, ciphertext: bytes) -> bytes:
+        """
+        Receive the message from Alice,
+        forward it to Bob.
+
+        :param ciphertext: The message from Alice to Bob.
+        """
+        bob_answer = self.bob.receive_and_send_back(ciphertext)
+        self.eavesdropped_message = matasano.public.DHEntity.decipher_received_message(
+            matasano.public.DHEntity.session_key_to_16_aes_bytes(self._session_key),
+            ciphertext
+        )
+        return bob_answer
+
+    def attack(self) -> bool:
+        """
+        Trigger the protocol and perform the MITM attack.
+        """
+        message = b"MessageInABottle"  # Make sure it's a multiple of 16
+        assert len(message) % 16 == 0
+
+        self.alice.dh_protocol(self, matasano.public.dh_nist_p, self.malicious_g)
+        self.alice.send_and_receive(self, message)
+
+        return self.eavesdropped_message == message
+

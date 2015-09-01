@@ -531,6 +531,26 @@ def thirtyfour():
     ))
 
 
+def thirtyfive():
+    """http://cryptopals.com/sets/5/challenges/35/"""
+    alice, bob = matasano.public.DHAckEntity(), matasano.public.DHAckEntity()
+
+    p = matasano.public.dh_nist_p
+    for g in [1, p - 1, p]:
+        print(
+            "MITM for g equal to {}.".format(g)
+        )
+        eve = matasano.attacker.EavesdropperAckDH(alice, bob, g)
+
+        attack = eve.attack()
+        print("Eavesdropped message: \"{}\".".format(
+            eve.eavesdropped_message.decode("ascii")
+        ))
+        print("The attack results was: {}.".format(
+            "success" if attack else "failure"
+        ))
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.

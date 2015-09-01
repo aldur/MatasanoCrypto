@@ -14,7 +14,7 @@ import matasano.hash
 import matasano.blocks
 import matasano.util
 
-_p = int(
+dh_nist_p = int(
     """0xffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd12902"""
     """4e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a4"""
     """31b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42"""
@@ -24,10 +24,10 @@ _p = int(
     """70c354e4abc9804f1746c08ca237327ffffffffffffffff""",
     base=16
 )
-_g = 2
+dh_nist_g = 2
 
 
-def dh_keys(p: int=_p, g: int=_g) -> tuple:
+def dh_keys(p: int=dh_nist_p, g: int=dh_nist_g) -> tuple:
     """
     Generate Diffie-Hellman keys.
 
@@ -56,13 +56,20 @@ class DHEntity:
         :param k: The session key.
         :return: An AES key derived from k.
         """
+        assert k >= 0
+
         h = matasano.hash.SHA1
-        digest = h(
-            k.to_bytes(
-                math.ceil(math.log(k, 256)),
-                'little'
+        if k == 0:
+            digest = h(bytes(1))
+        elif k == 1:
+            digest = h(k.to_bytes(1, 'little'))
+        else:
+            digest = h(
+                k.to_bytes(
+                    math.ceil(math.log(k, 256)),
+                    'little'
+                )
             )
-        ) if k != 0 else h(bytes(1))
 
         assert len(digest) > 16
         return digest[:16]
@@ -87,19 +94,24 @@ class DHEntity:
 
     def __init__(self):
         self._keys = None
-        self._session_key = None
+        self._session_key = -1  # Invalid, has to be >= 0
 
-    def dh_protocol(self, receiver):
+    def dh_protocol(self, receiver, p: int=None, g: int=None):
         """
         Generate a new pair of keys.
         Initiate a new DH-key exchange protocol.
 
         :param receiver: The responding entity of the DH-protocol.
+        :param p: The group modulo.
+        :param g: A primitive root of p.
         """
         assert receiver
         assert receiver != self
 
-        p, g, a, pub_a = self._keys = dh_keys()
+        if p and g:
+            _, _, a, pub_a = self._keys = dh_keys(p, g)
+        else:
+            p, g, a, pub_a = self._keys = dh_keys()
         pub_b = receiver.dh_protocol_respond(p, g, pub_a)
         self._session_key = pow(pub_b, a, p)
 
@@ -164,3 +176,53 @@ class DHEntity:
         )
         return ciphertext + iv
 
+
+class DHAckEntity(DHEntity):
+    """
+    Before starting the DH protocol send the group parameters
+    and wait for an ACK.
+    """
+
+    def __init__(self):
+        super(DHAckEntity, self).__init__()
+        self._p, self._g = dh_nist_p, dh_nist_g
+
+    def set_group_parameters(self, p: int, g: int):
+        """
+        Setup the group parameters and return.
+
+        :param p: The group modulo.
+        :param g: A primitive root of p.
+        :return: True.
+        """
+        self._p, self._g = p, g
+        return True
+
+    def dh_protocol(self, receiver, p: int=None, g: int=None):
+        """
+        Send the group parameters to the receiver and wait for an ACK.
+        Generate a new pair of keys.
+        Initiate a new DH-key exchange protocol.
+
+        :param p: The group modulo.
+        :param g: A primitive root of p.
+        :param receiver: The responding entity of the DH-protocol.
+        """
+        receiver.set_group_parameters(p, g)
+        super(DHAckEntity, self).dh_protocol(receiver, p, g)
+
+    def dh_protocol_respond(self, p: int, g: int, pub_a: int) -> int:
+        """
+        Handle a DH protocol request.
+        Generate a new pair keys,
+        return the public one to the caller,
+        and store the session key computed
+        from the caller's public key.
+
+        :param p: The group modulo.
+        :param g: A primitive root of p.
+        :param pub_a: The caller's DH public key.
+        """
+        assert self._p == p
+        assert self._g == g
+        return super(DHAckEntity, self).dh_protocol_respond(self._p, self._g, pub_a)
