@@ -27,6 +27,28 @@ class PublicTestCase(unittest.TestCase):
             pow(g, priv, p), pub
         )
 
+    def test_dh_protocol(self):
+        alice = matasano.public.DHEntity()
+        bob = matasano.public.DHEntity()
+
+        alice.dh_protocol(bob)
+        self.assertEqual(
+            alice._session_key,
+            bob._session_key
+        )
+
+    def test_dh_message(self):
+        alice = matasano.public.DHEntity()
+        bob = matasano.public.DHEntity()
+        alice.dh_protocol(bob)
+
+        message = b"MessageInABottle"
+        answer = alice.send_and_receive(bob, message)
+        self.assertEqual(
+            message,
+            answer
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

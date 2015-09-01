@@ -517,6 +517,20 @@ def thirtythree():
     ))
 
 
+def thirtyfour():
+    """http://cryptopals.com/sets/5/challenges/34/"""
+    alice, bob = matasano.public.DHEntity(), matasano.public.DHEntity()
+    eve = matasano.attacker.EavesdropperDH(alice, bob)
+
+    attack = eve.attack()
+    print("Eavesdropped message: \"{}\".".format(
+        eve.eavesdropped_message.decode("ascii")
+    ))
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.

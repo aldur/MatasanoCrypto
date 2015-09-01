@@ -10,7 +10,6 @@ The attacker tools will implemented here.
 import abc
 import binascii
 import time
-import collections
 
 import matasano.oracle
 import matasano.blocks
@@ -18,6 +17,7 @@ import matasano.stats
 import matasano.prng
 import matasano.util
 import matasano.hash
+import matasano.public
 
 
 class Attacker(object):
@@ -32,6 +32,22 @@ class Attacker(object):
     def attack(self) -> bool:
         """
         Perform the attack against the oracle.
+        The default implementation does nothing.
+
+        :return: True if the attack was successful.
+        """
+        return False
+
+
+class Eavesdropper(object):
+    """The generic, abstract, eavesdropper."""
+
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def attack(self) -> bool:
+        """
+        Perform the eavesdrop attack.
         The default implementation does nothing.
 
         :return: True if the attack was successful.
@@ -1134,7 +1150,7 @@ class AttackerRemoteSHA1HMac(Attacker):
             times = {
                 k: v for k, v in times.items()
                 if v >= (i + 1) * sleep_time
-            }
+                }
 
             while len(times) > 1:
                 _times = dict()
@@ -1151,7 +1167,7 @@ class AttackerRemoteSHA1HMac(Attacker):
                 times = {
                     k: v for k, v in _times.items()
                     if v >= (i + 1) * sleep_time
-                }
+                    }
                 time.sleep(5)
 
             self.forged_mac[i] = list(times.keys())[0]
@@ -1161,3 +1177,65 @@ class AttackerRemoteSHA1HMac(Attacker):
             message,
             self.forged_mac
         )
+
+
+class EavesdropperDH(Eavesdropper, matasano.public.DHEntity):
+    """
+    MITM attack against an instance of the DH protocol.
+    Replace Alice's and Bob's public keys with the default p.
+    """
+
+    def __init__(
+            self,
+            alice: matasano.public.DHEntity,
+            bob: matasano.public.DHEntity
+    ):
+        super(EavesdropperDH, self).__init__()
+
+        self.alice, self.bob = alice, bob
+        self.alice_pub, self.bob_pub = None, None
+
+        self.eavesdropped_message = None
+
+    def dh_protocol_respond(self, p: int, g: int, pub_a: int):
+        """
+        The usual response to the DH protocol.
+        Forward this response to Bob,
+        after replacing the public key with p.
+
+        :param p: The group modulo.
+        :param g: A primitive root of p.
+        :param pub_a: Alice's DH public key.
+        """
+        self.alice_pub = pub_a
+        self.bob_pub = self.bob.dh_protocol_respond(p, g, p)
+        self._session_key = 0
+        return p
+
+    def receive_and_send_back(self, ciphertext: bytes) -> bytes:
+        """
+        Receive the message from Alice,
+        forward it to Bob.
+
+        :param ciphertext: The message from Alice to Bob.
+        """
+        bob_answer = self.bob.receive_and_send_back(ciphertext)
+        self.eavesdropped_message = matasano.public.DHEntity.decipher_received_message(
+            matasano.public.DHEntity.session_key_to_16_aes_bytes(self._session_key),
+            ciphertext
+        )
+        return bob_answer
+
+    def attack(self) -> bool:
+        """
+        Trigger the protocol and perform the MITM attack.
+        """
+        message = b"MessageInABottle"  # Make sure it's a multiple of 16
+        assert len(message) % 16 == 0
+
+        self.alice.dh_protocol(self)
+        self.alice.send_and_receive(self, message)
+
+        return self.eavesdropped_message == message
+
+
