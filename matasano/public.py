@@ -187,7 +187,8 @@ class DHAckEntity(DHEntity):
         :param g: A primitive root of p.
         :return: True.
         """
-        self._p, self._g = p, g
+        if p and g:
+            self._p, self._g = p, g
         return True
 
     def dh_protocol(self, receiver, p: int=None, g: int=None):
