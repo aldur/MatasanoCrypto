@@ -82,6 +82,13 @@ class PublicTestCase(unittest.TestCase):
 
         self.assertTrue(client.srp_protocol())
 
+    def test_simplified_srp(self):
+        password = b"A simple secret password."
+        server = matasano.public.SimplifiedSRPServer(password)
+        client = matasano.public.SimplifiedSRPClient(password, server)
+
+        self.assertTrue(client.srp_protocol())
+
 
 if __name__ == '__main__':
     unittest.main()

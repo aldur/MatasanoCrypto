@@ -10,6 +10,8 @@ import re
 import struct
 import functools
 import math
+import random
+import os.path
 
 
 def hex_to_b64(hex_input: bytes) -> bytes:
@@ -105,7 +107,7 @@ def key_value_parsing(s: str) -> dict:
         kv.split("=")[0]: kv.split("=")[1]
         for kv in s.split("&")
         if kv.count("=")
-    }
+        }
 
 
 def dictionary_to_kv(d: dict) -> str:
@@ -214,7 +216,7 @@ def left_rotate(n: int, b: int) -> int:
     return ((n << b) | ((n & 0xffffffff) >> (32 - b))) & 0xffffffff
 
 
-def bytes_for_big_int(n: int):
+def bytes_for_big_int(n: int) -> bytes:
     """
     Represent a big int in little endian bytes.
 
@@ -229,6 +231,31 @@ def bytes_for_big_int(n: int):
         return n.to_bytes(1, 'little')
     else:
         return n.to_bytes(
-            math.ceil(math.log(n, 256)),
+            math.ceil(math.log(n, 255)),
             'little'
         )
+
+
+def get_password_wordlist() -> list:
+    """
+    Return a generator of password.
+    If the system contains it,
+    return words from:
+        /usr/share/dict/words
+    """
+    file_path = "/usr/share/dict/words"
+    if not os.path.isfile(file_path):
+        return (w.encode("ascii") for w in ["foo", "bar", "password"])
+
+    with open(file_path) as wordlist:
+        return (w.rstrip().lower().encode("ascii") for w in wordlist.readlines())
+
+
+def get_random_password() -> bytes:
+    """
+    Return a random password from
+    those available.
+    """
+    return random.choice(
+        list(get_password_wordlist())
+    )

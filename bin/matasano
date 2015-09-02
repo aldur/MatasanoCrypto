@@ -588,6 +588,25 @@ def thirtyseven():
         print("Failure, something went wrong during the protocol.")
 
 
+def thirtyeight():
+    """http://cryptopals.com/sets/5/challenges/38/"""
+    password = matasano.util.get_random_password()
+    attacker = matasano.attacker.EavesdropperSimplifiedSRPServer()
+    client = matasano.public.SimplifiedSRPClient(
+        password,
+        attacker
+    )
+
+    client.srp_protocol()
+    result = attacker.attack()
+    if result:
+        print("Success. Cracked password: {}.".format(
+            attacker.client_password.decode("ascii")
+        ))
+    else:
+        print("Failure, something went wrong during the brute-force.")
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.

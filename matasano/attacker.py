@@ -8,7 +8,6 @@ The attacker tools will implemented here.
 """
 
 import abc
-import binascii
 import time
 
 import matasano.oracle
@@ -18,6 +17,7 @@ import matasano.prng
 import matasano.util
 import matasano.hash
 import matasano.public
+import matasano.mac
 
 
 class Attacker(object):
@@ -1334,3 +1334,71 @@ class EavesdropperAckDH(Eavesdropper, matasano.public.DHAckEntity):
 
         return self.eavesdropped_message == message
 
+
+class EavesdropperSimplifiedSRPServer(
+    matasano.public.SimplifiedSRPServer,
+    Eavesdropper
+):
+    """
+    Brute-force the client's signature in order to discover its password.
+    """
+
+    def __init__(self):
+        super(Eavesdropper, self).__init__()
+        super(matasano.public.SimplifiedSRPServer, self).__init__(password=bytes())
+
+        self.b = 1
+        self.B = self.g
+        self.u = 1
+        self._salt = matasano.util.bytes_for_big_int(256)
+
+        self.A = -1
+        self.client_signature = None
+        self.client_password = None
+
+    def srp_protocol_one(self, A: int) -> tuple:
+        """
+        Complete the phase one of the protocol, responding to the client.
+
+        :param A: The client's public key.
+        """
+        self.A = A
+        return self._salt, self.B, self.u
+
+    def srp_protocol_two(self, signature: bytes) -> bool:
+        """
+        Return True.
+
+        :param signature: The client's produced MAC.
+        :return: Whether the signature is correct.
+        """
+        self.client_signature = signature
+        return True
+
+    def attack(self) -> bool:
+        """
+        Offline brute-force the client's password from the HMAC signature.
+        """
+
+        for password in matasano.util.get_password_wordlist():
+            digest = matasano.hash.SHA256(self._salt + password)
+            x = int.from_bytes(digest, 'little')
+            v = pow(self.g, x, self.N)
+            s = pow(
+                self.A * pow(v, self.u, self.N),
+                self.b,
+                self.N
+            )
+
+            self._K = matasano.hash.SHA256(
+                matasano.util.bytes_for_big_int(s)
+            )
+
+            if matasano.mac.hmac_sha256(
+                    self._K,
+                    self._salt
+            ) == self.client_signature:
+                self.client_password = password
+                return True
+        else:
+            return False

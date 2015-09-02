@@ -431,3 +431,90 @@ class SRPClientFakeA(SRPClient):
                 )
             )
 
+
+class SimplifiedSRPServer(SRPServer):
+
+    """
+    The server entity in the simplified SRP protocol.
+    """
+
+    def srp_protocol_one(self, A: int) -> tuple:
+        """
+        Complete the phase one of the protocol, responding to the client.
+
+        :param A: The client's public key.
+        """
+        v, self._salt = self._srp_generate()
+        b = random.randint(0, self.N)
+        B = pow(self.g, b, self.N)
+
+        u = random.randint(0, (2 ** 128) - 1)  # 128 bit random number
+
+        s = pow(
+            A * pow(v, u, self.N),
+            b,
+            self.N
+        )
+
+        self._K = matasano.hash.SHA256(
+            matasano.util.bytes_for_big_int(s)
+        )
+
+        return self._salt, B, u
+
+
+class SimplifiedSRPClient(SRPClient):
+
+    """
+    The client initiating the simplified SRP protocol.
+
+    :param password: The password.
+    :param server: The server.
+    :param n: A NIST prime.
+    :param g: A primitive root of n.
+    :param k: A positive integer.
+    """
+
+    def __init__(
+            self,
+            password: bytes,
+            server: SimplifiedSRPServer,
+            n: int=dh_nist_p,
+            g: int=2,
+            k: int=3,
+    ):
+        super().__init__(password, server, n, g, k)
+
+    def srp_protocol(self) -> bool:
+        """
+        The simplified SRP protocol,
+        as started from the client.
+        """
+        a = random.randint(0, self.N)
+        A = pow(self.g, a, self.N)
+
+        salt, B, u = self.server.srp_protocol_one(A)
+
+        x = int.from_bytes(
+            matasano.hash.SHA256(
+                salt + self._password
+            ), byteorder="little"
+        )
+
+        s = pow(
+            B,
+            a + u * x,
+            self.N
+        )
+
+        self.key = matasano.hash.SHA256(
+            matasano.util.bytes_for_big_int(s)
+        )
+
+        return self.server.srp_protocol_two(
+            matasano.mac.hmac_sha256(
+                self.key,
+                salt
+            )
+        )
+
