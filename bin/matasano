@@ -607,6 +607,16 @@ def thirtyeight():
         print("Failure, something went wrong during the brute-force.")
 
 
+def thirtynine():
+    """http://cryptopals.com/sets/5/challenges/39/"""
+    private, public = matasano.public.rsa_keys()
+    print(
+        "Generated RSA keys.\ne: {}.\nd: {}.\nn: {}.".format(
+            public[0], private[0], private[1]
+        )
+    )
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.

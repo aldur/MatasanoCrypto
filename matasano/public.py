@@ -13,6 +13,7 @@ import matasano.hash
 import matasano.blocks
 import matasano.util
 import matasano.mac
+import matasano.math
 
 dh_nist_p = int(
     """0xffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd12902"""
@@ -39,6 +40,68 @@ def dh_keys(p: int=dh_nist_p, g: int=dh_nist_g) -> tuple:
     public_key = pow(g, private_key, p)
 
     return p, g, private_key, public_key
+
+
+def rsa_keys(p: int=None, q: int=None, e: int=3) -> tuple:
+    """
+    Generate a new set of RSA keys.
+    If p and q are not provided (<= 1),
+    then they will be generated.
+
+    :param p: A big prime.
+    :param q: A big prime.
+    :param e: The default public key.
+    :return: The RSA private and public keys.
+    :raise Exception: If provided p and q are invalid.
+    """
+
+    if not p or p <= 1:
+        p = matasano.math.random_big_prime(e=e)
+    if not q or q <= 1:
+        q = matasano.math.random_big_prime(e=e)
+
+    n = p * q
+    phi_n = (p - 1) * (q - 1)
+    d = matasano.math.modinv(e, phi_n)
+
+    return (d, n), (e, n)
+
+
+def rsa_encrypt(key: tuple, message: bytes) -> int:
+    """
+    Encrypt the message by using RSA.
+    Note, this is a deterministic, textbook implementation.
+
+    :param key: The RSA public key (e, n).
+    :param message: The message to be encrypted.
+    :return: The encryption.
+    """
+    e, n = key
+
+    return pow(
+        int.from_bytes(message, byteorder="little"),
+        e,
+        n
+    )
+
+
+def rsa_decrypt(key: tuple, cipher: int) -> bytes:
+    """
+    Decrypt the message by using RSA.
+
+    :param key: The RSA private key (d, n).
+    :param cipher: The message to be decrypted.
+    :return: The decrypted message.
+    """
+    d, n = key
+
+    return matasano.util.bytes_for_big_int(
+        pow(
+            cipher,
+            d,
+            n
+        )
+    )
 
 
 class DHEntity:
@@ -222,7 +285,6 @@ class DHAckEntity(DHEntity):
 
 
 class SRPServer:
-
     """
     The server entity in the SRP protocol.
 
@@ -308,7 +370,6 @@ class SRPServer:
 
 
 class SRPClient:
-
     """
     The client initiating the SRP protocol.
 
@@ -381,7 +442,6 @@ class SRPClient:
 
 
 class SRPClientFakeA(SRPClient):
-
     """
     The client initiating the SRP protocol.
 
@@ -434,7 +494,6 @@ class SRPClientFakeA(SRPClient):
 
 
 class SimplifiedSRPServer(SRPServer):
-
     """
     The server entity in the simplified SRP protocol.
     """
@@ -465,7 +524,6 @@ class SimplifiedSRPServer(SRPServer):
 
 
 class SimplifiedSRPClient(SRPClient):
-
     """
     The client initiating the simplified SRP protocol.
 
@@ -518,4 +576,3 @@ class SimplifiedSRPClient(SRPClient):
                 salt
             )
         )
-

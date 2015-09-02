@@ -89,6 +89,16 @@ class PublicTestCase(unittest.TestCase):
 
         self.assertTrue(client.srp_protocol())
 
+    def test_rsa_textbook(self):
+        private, public = matasano.public.rsa_keys()
+        message = b"Textbook"
+
+        c = matasano.public.rsa_encrypt(public, message)
+        self.assertEqual(
+            matasano.public.rsa_decrypt(private, c),
+            message
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
