@@ -566,6 +566,28 @@ def thirtysix():
         print("Failure, something went wrong during the protocol.")
 
 
+def thirtyseven():
+    """http://cryptopals.com/sets/5/challenges/37/"""
+    password = b"A secret password"
+    server = matasano.public.SRPServer(password)
+    print(
+        "Initiating SRP protocol client public key set to N."
+    )
+    # Client doesn't know the password.
+    client = matasano.public.SRPClientFakeA(
+        server,
+        A=matasano.public.dh_nist_p
+    )
+
+    result = client.srp_protocol()
+    if result:
+        print("Success. Negotiated key: {}.".format(
+            binascii.hexlify(client.key).decode("ascii")
+        ))
+    else:
+        print("Failure, something went wrong during the protocol.")
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.

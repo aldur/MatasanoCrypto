@@ -342,7 +342,7 @@ class SRPClient:
         a = random.randint(0, self.N)
         A = pow(self.g, a, self.N)
 
-        salt, server_pub_key = self.server.srp_protocol_one(
+        salt, B = self.server.srp_protocol_one(
             A
         )
 
@@ -350,7 +350,7 @@ class SRPClient:
             matasano.hash.SHA256(
                 matasano.util.bytes_for_big_int(A)
                 +
-                matasano.util.bytes_for_big_int(server_pub_key)
+                matasano.util.bytes_for_big_int(B)
             ),
             byteorder='little'
         )
@@ -362,7 +362,7 @@ class SRPClient:
         )
 
         s = pow(
-            server_pub_key - self.k * pow(self.g, x, self.N),
+            B - self.k * pow(self.g, x, self.N),
             a + u * x,
             self.N
         )
@@ -378,4 +378,56 @@ class SRPClient:
             )
         )
 
+
+class SRPClientFakeA(SRPClient):
+
+    """
+    The client initiating the SRP protocol.
+
+    :param server: The server.
+    :param n: A NIST prime.
+    :param g: A primitive root of n.
+    :param k: A positive integer.
+    :param A: A custom public key for the client s.t. A % N == 0.
+    """
+
+    def __init__(
+            self,
+            server: SRPServer,
+            n: int=dh_nist_p,
+            g: int=2,
+            k: int=3,
+            A: int=-1
+    ):
+        super().__init__(bytes(), server, n, g, k)
+
+        if A != -1:
+            assert A % n == 0
+        self.A = A
+
+    def srp_protocol(self) -> bool:
+        """
+        The SRP protocol,
+        as started from the client.
+        """
+        if self.A == -1:
+            return super().srp_protocol()
+        else:
+            A = self.A
+
+            salt, _ = self.server.srp_protocol_one(
+                A
+            )
+
+            # Server's session key will always be 0
+            self.key = matasano.hash.SHA256(
+                matasano.util.bytes_for_big_int(0)
+            )
+
+            return self.server.srp_protocol_two(
+                matasano.mac.hmac_sha256(
+                    self.key,
+                    salt
+                )
+            )
 

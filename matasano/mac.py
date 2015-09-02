@@ -56,7 +56,7 @@ def _hmac(
     :param block_size: The bytes length produced by the hash function.
     :return: The message authentication code.
     """
-    assert all((key, message, hash_function, block_size))
+    assert all((hash_function, block_size))
 
     opad = bytes(0x5c for _ in range(block_size))
     ipad = bytes(0x36 for _ in range(block_size))
