@@ -78,3 +78,10 @@ hmac_sha1 = functools.partial(
     hash_function=matasano.hash.SHA1,
     block_size=64
 )
+
+
+hmac_sha256 = functools.partial(
+    _hmac,
+    hash_function=matasano.hash.SHA256,
+    block_size=64
+)

@@ -9,6 +9,7 @@ Credits: http://www.acooke.org/cute/PurePython0.html
 License: GPL
 """
 
+import hashlib
 import struct
 import functools
 
@@ -234,3 +235,14 @@ md4_pad = functools.partial(
     length_to_bytes=_md4_length_to_bytes
 )
 
+
+def SHA256(b: bytes) -> bytes:
+    """
+    Wrapper around native Python implementation.
+
+    :param b: The message to be hashed.
+    :return: The hash digest of the message.
+    """
+    h = hashlib.sha256()
+    h.update(b)
+    return h.digest()

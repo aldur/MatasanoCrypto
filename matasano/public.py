@@ -8,11 +8,11 @@ Public cryptography tools.
 """
 
 import random
-import math
 
 import matasano.hash
 import matasano.blocks
 import matasano.util
+import matasano.mac
 
 dh_nist_p = int(
     """0xffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd12902"""
@@ -59,17 +59,9 @@ class DHEntity:
         assert k >= 0
 
         h = matasano.hash.SHA1
-        if k == 0:
-            digest = h(bytes(1))
-        elif k == 1:
-            digest = h(k.to_bytes(1, 'little'))
-        else:
-            digest = h(
-                k.to_bytes(
-                    math.ceil(math.log(k, 256)),
-                    'little'
-                )
-            )
+        digest = h(
+            matasano.util.bytes_for_big_int(k)
+        )
 
         assert len(digest) > 16
         return digest[:16]
@@ -226,3 +218,164 @@ class DHAckEntity(DHEntity):
         assert self._p == p
         assert self._g == g
         return super(DHAckEntity, self).dh_protocol_respond(self._p, self._g, pub_a)
+
+
+class SRPServer:
+
+    """
+    The server entity in the SRP protocol.
+
+    :param password: The negotiated password.
+    :param n: A NIST prime.
+    :param g: A primitive root of n.
+    :param k: An int.
+    """
+
+    def __init__(
+            self,
+            password: bytes,
+            n: int=dh_nist_p,
+            g: int=2,
+            k: int=3
+    ):
+        self.N = n
+        self.g = g
+        self.k = k
+
+        self._password = password
+        self._K = -1
+        self._salt = -1
+
+    def _srp_generate(self) -> tuple:
+        """
+        Generate a new SRP.
+
+        :return: the generated int and the salt (as bytes).
+        """
+        salt = matasano.util.bytes_for_big_int(
+            random.randint(0, self.N)
+        )
+        digest = matasano.hash.SHA256(salt + self._password)
+        x = int.from_bytes(digest, 'little')
+        v = pow(self.g, x, self.N)
+
+        return v, salt
+
+    def srp_protocol_one(self, A: int) -> tuple:
+        """
+        Complete the phase one of the protocol, responding to the client.
+
+        :param A: The client's public key.
+        """
+        v, self._salt = self._srp_generate()
+        b = random.randint(0, self.N)
+        B = self.k * v + pow(self.g, b, self.N)
+
+        u = int.from_bytes(
+            matasano.hash.SHA256(
+                matasano.util.bytes_for_big_int(A)
+                +
+                matasano.util.bytes_for_big_int(B)
+            ),
+            byteorder='little'
+        )
+
+        s = pow(
+            A * pow(v, u, self.N),
+            b,
+            self.N
+        )
+
+        self._K = matasano.hash.SHA256(
+            matasano.util.bytes_for_big_int(s)
+        )
+        return self._salt, B
+
+    def srp_protocol_two(self, signature: bytes) -> bool:
+        """
+        Check the signature against HMAC-SHA256(k, salt).
+
+        :param signature: The client's produced MAC.
+        :return: Whether the signature is correct.
+        """
+        truth = matasano.mac.hmac_sha256(
+            self._K,
+            self._salt
+        )
+
+        return signature == truth
+
+
+class SRPClient:
+
+    """
+    The client initiating the SRP protocol.
+
+    :param password: The password.
+    :param server: The server.
+    :param n: A NIST prime.
+    :param g: A primitive root of n.
+    :param k: A positive integer.
+    """
+
+    def __init__(
+            self,
+            password: bytes,
+            server: SRPServer,
+            n: int=dh_nist_p,
+            g: int=2,
+            k: int=3,
+    ):
+        self.server = server
+        self.N = n
+        self.g = g
+        self.k = k
+
+        self._password = password
+        self.key = -1
+
+    def srp_protocol(self) -> bool:
+        """
+        The SRP protocol,
+        as started from the client.
+        """
+        a = random.randint(0, self.N)
+        A = pow(self.g, a, self.N)
+
+        salt, server_pub_key = self.server.srp_protocol_one(
+            A
+        )
+
+        u = int.from_bytes(
+            matasano.hash.SHA256(
+                matasano.util.bytes_for_big_int(A)
+                +
+                matasano.util.bytes_for_big_int(server_pub_key)
+            ),
+            byteorder='little'
+        )
+
+        x = int.from_bytes(
+            matasano.hash.SHA256(
+                salt + self._password
+            ), byteorder="little"
+        )
+
+        s = pow(
+            server_pub_key - self.k * pow(self.g, x, self.N),
+            a + u * x,
+            self.N
+        )
+
+        self.key = matasano.hash.SHA256(
+            matasano.util.bytes_for_big_int(s)
+        )
+
+        return self.server.srp_protocol_two(
+            matasano.mac.hmac_sha256(
+                self.key,
+                salt
+            )
+        )
+
+

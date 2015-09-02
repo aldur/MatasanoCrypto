@@ -9,6 +9,7 @@ import base64
 import re
 import struct
 import functools
+import math
 
 
 def hex_to_b64(hex_input: bytes) -> bytes:
@@ -211,3 +212,23 @@ def left_rotate(n: int, b: int) -> int:
     :return: The input after applying rotation.
     """
     return ((n << b) | ((n & 0xffffffff) >> (32 - b))) & 0xffffffff
+
+
+def bytes_for_big_int(n: int):
+    """
+    Represent a big int in little endian bytes.
+
+    :param n: The int to be represented in bytes.
+    :return: A byte representation of the int.
+    """
+    assert n >= 0
+
+    if n == 0:
+        return bytes(1)
+    elif n == 1:
+        return n.to_bytes(1, 'little')
+    else:
+        return n.to_bytes(
+            math.ceil(math.log(n, 256)),
+            'little'
+        )
