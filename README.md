@@ -7,7 +7,7 @@ Look at the online solutions only afterwards, to evaluate yours.
 ## Try it out
 
 ### Requirements
-This project explicitly requires Python 3.
+This project explicitly requires a Python version ≥ 3.4.
 I've experimented with [type hints](https://www.python.org/dev/peps/pep-0484/).
 Any other requirement is listed in the `requirements.txt` file.
 
@@ -16,8 +16,12 @@ Any other requirement is listed in the `requirements.txt` file.
 $ git clone https://github.com/aldur/MatasanoCrypto.git
 $ cd MatasanoCrypto
 $ python3 setup.py develop
-$ python3 bin/matasano
+$ python3 bin/matasano <challenge #>
 ```
+
+## Read it
+The `bin/matasano` file contains the code used to solve each problem.
+Navigate the code from there.
 
 ## Progress
 
@@ -28,3 +32,6 @@ $ python3 bin/matasano
 - [x] Set 5
 - [ ] Set 6
 - [ ] Set 7
+
+## License
+MIT License.
