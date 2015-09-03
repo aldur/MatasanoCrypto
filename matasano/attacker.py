@@ -8,6 +8,7 @@ The attacker tools will implemented here.
 import abc
 import time
 import math
+import random
 
 import matasano.oracle
 import matasano.blocks
@@ -1458,4 +1459,43 @@ class AttackerRSABroadcast:
 
         return matasano.util.bytes_for_big_int(
             int(math.ceil(pow(result, 1 / 3.0)))
+        )
+
+
+class AttackerUnpaddedRSARecovery(Attacker):
+
+    """
+    Exploit RSA's homomorphic encryption property
+    and trick the oracle into decrypting the secret.
+
+    :param oracle: The oracle to be attacked.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleUnpaddedRSARecovery):
+        super(AttackerUnpaddedRSARecovery, self).__init__(oracle)
+
+    def attack(self) -> bool:
+        """
+        Multiply the oracle's challenge with a new
+        ciphertext (trap), whose plaintext value is known
+        (s).
+        After the oracle's decryption the resulting
+        plaintext will be multiplied by s.
+
+        :return: True if the attack is successful.
+        """
+        cipher, pub = self.oracle.challenge()
+
+        s = random.randint(1, pub.n - 1)
+        inv_s = matasano.math.modinv(s, pub.n)
+        trap = (pow(s, pub.e, pub.n) * cipher) % pub.n
+
+        plaintext = self.oracle.experiment(trap)
+        plaintext = int.from_bytes(plaintext, byteorder="little")
+        plaintext = (plaintext * inv_s) % pub.n
+
+        return self.oracle.guess(
+            matasano.util.bytes_for_big_int(
+                plaintext
+            )
         )

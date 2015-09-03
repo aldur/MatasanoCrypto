@@ -23,6 +23,7 @@ import matasano.blocks
 import matasano.util
 import matasano.prng
 import matasano.mac
+import matasano.public
 
 __author__ = 'aldur'
 
@@ -1185,3 +1186,67 @@ class OracleRemoteSHA1HMac(Oracle):
             return True
         else:
             return False
+
+
+class OracleUnpaddedRSARecovery(Oracle):
+    
+    """
+    Decrypt (only once) arbitrary RSA blobs.
+    The attacker's challenge is to trick the oracle
+    into decrypting an already-seen blob.
+    """
+
+    def __init__(self):
+        super(OracleUnpaddedRSARecovery, self).__init__()
+
+        self._keys = matasano.public.rsa_keys()
+        self._secret = matasano.util.bytes_for_big_int(
+            random.randint(1, self._keys.pub.n)
+        )
+
+        self._guessed = False
+        self._decrypted = set(self._secret)
+
+    def guess(self, guess: bytes) -> bool:
+        """
+        Compare the attacker's guess against the hold secret.
+
+        :param guess: The attacker's guess.
+        :return: True if the guess is correct.
+        """
+        if self._guessed:
+            raise CheatingException(
+                "You can only guess once!"
+            )
+        self._guessed = True
+        return guess == self._secret
+
+    def challenge(self) -> tuple:
+        """
+        Return to the caller a new ciphertext and the public key.
+        """
+        return matasano.public.rsa_encrypt(
+            self._keys.pub,
+            self._secret
+        ), self._keys.pub
+
+    def experiment(self, cipher: int) -> bytes:
+        """
+        Decrypt the cipher and return it to the oracle,
+        iff the corresponding plaintext has never been seen.
+
+        :param cipher: The ciphertext to be decrypted.
+        :return: The plaintext.
+        """
+        plaintext = matasano.public.rsa_decrypt(
+            self._keys.priv,
+            cipher
+        )
+
+        if plaintext in self._decrypted:
+            raise CheatingException(
+                "I won't decrypt this blob again."
+            )
+
+        self._decrypted.add(plaintext)
+        return plaintext

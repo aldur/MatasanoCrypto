@@ -639,6 +639,17 @@ def forty():
     ))
 
 
+def fortyone():
+    """http://cryptopals.com/sets/6/challenges/41/"""
+    oracle = matasano.oracle.OracleUnpaddedRSARecovery()
+    attacker = matasano.attacker.AttackerUnpaddedRSARecovery(oracle)
+
+    attack = attacker.attack()
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.
