@@ -24,7 +24,7 @@ $ python3 bin/matasano
 - [x] Set 1
 - [x] Set 2
 - [x] Set 3
-- [ ] Set 4
-- [ ] Set 5
+- [x] Set 4
+- [x] Set 5
 - [ ] Set 6
 - [ ] Set 7
