@@ -1,8 +1,6 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
-
 """Handle operations supporting blocks here."""
 
 import math
@@ -12,6 +10,8 @@ import matasano.oracle
 import matasano.prng
 
 from Crypto.Cipher import AES
+
+__author__ = 'aldur'
 
 
 class BadPaddingException(Exception):

@@ -1,13 +1,17 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
+"""
+Test the hash functions.
+"""
 
 import unittest
 import binascii
 import hashlib
 
 import matasano.hash
+
+__author__ = 'aldur'
 
 
 class HashTestCase(unittest.TestCase):

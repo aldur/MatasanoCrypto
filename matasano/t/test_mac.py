@@ -1,13 +1,17 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
+"""
+Test the MACs.
+"""
 
 import unittest
 import hmac
 import hashlib
 
 import matasano.mac
+
+__author__ = 'aldur'
 
 
 class MacTestCase(unittest.TestCase):

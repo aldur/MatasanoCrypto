@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-__author__ = "aldur"
-
 """Buffer/string/bytes stats function will stay here."""
 
 import math
@@ -11,6 +9,8 @@ import itertools
 import sys
 
 import matasano.util
+
+__author__ = "aldur"
 
 """
 Distribution of single characters in the english language.

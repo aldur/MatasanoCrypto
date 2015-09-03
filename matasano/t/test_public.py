@@ -1,11 +1,14 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
+"""
+Test the public key related crypto.
+"""
 
 import unittest
-
 import matasano.public
+
+__author__ = 'aldur'
 
 
 class PublicTestCase(unittest.TestCase):

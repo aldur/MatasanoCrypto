@@ -1,8 +1,6 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
-
 """
 The oracle related stuff.
 Random generations, games, and so on.
@@ -25,6 +23,8 @@ import matasano.blocks
 import matasano.util
 import matasano.prng
 import matasano.mac
+
+__author__ = 'aldur'
 
 
 class CheatingException(Exception):

@@ -1,13 +1,13 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
-
 """Handle PRN generation."""
 
 import matasano.util
 
 import time
+
+__author__ = 'aldur'
 
 
 class MT19937:

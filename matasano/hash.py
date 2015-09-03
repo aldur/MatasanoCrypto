@@ -1,8 +1,6 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
-
 """
 Hashing related tools.
 Credits: http://www.acooke.org/cute/PurePython0.html
@@ -14,6 +12,8 @@ import struct
 import functools
 
 import matasano.util
+
+__author__ = 'aldur'
 
 
 def _md_pad_64(message: bytes, length_to_bytes, fake_byte_len: int=None) -> bytes:

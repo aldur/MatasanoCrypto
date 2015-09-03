@@ -1,10 +1,14 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
+"""
+Test the oracles.
+"""
 
 import unittest
 import matasano.oracle
+
+__author__ = 'aldur'
 
 
 class OracleTestCase(unittest.TestCase):

@@ -1,8 +1,6 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
-
 """
 Public cryptography tools.
 """
@@ -15,6 +13,8 @@ import matasano.blocks
 import matasano.util
 import matasano.mac
 import matasano.math
+
+__author__ = 'aldur'
 
 dh_nist_p = int(
     """0xffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd12902"""

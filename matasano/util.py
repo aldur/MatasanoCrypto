@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-__author__ = "aldur"
-
 """Various utils."""
 
 import base64
@@ -12,6 +10,8 @@ import functools
 import math
 import random
 import os.path
+
+__author__ = "aldur"
 
 
 def hex_to_b64(hex_input: bytes) -> bytes:

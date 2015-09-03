@@ -1,11 +1,14 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
+"""
+Test math-related tools.
+"""
 
 import unittest
-
 import matasano.math
+
+__author__ = 'aldur'
 
 
 class MathTestCase(unittest.TestCase):

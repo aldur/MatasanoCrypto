@@ -1,12 +1,12 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
-
 """Math related tools."""
 
 import Crypto.Util.number
 import functools
+
+__author__ = 'aldur'
 
 
 def extended_gcd(a: int, b: int) -> tuple:
@@ -35,7 +35,7 @@ def extended_gcd(a: int, b: int) -> tuple:
     )
 
 
-def modinv(a: int, m: int):
+def modinv(a: int, m: int) -> int:
     """
     Compute the inverse mod(m) of a.
 

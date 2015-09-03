@@ -1,8 +1,6 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
-
 """
 The attacker tools will implemented here.
 """
@@ -20,6 +18,8 @@ import matasano.hash
 import matasano.public
 import matasano.mac
 import matasano.math
+
+__author__ = 'aldur'
 
 
 class Attacker(object):

@@ -1,10 +1,14 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
+"""
+Test the utils.
+"""
 
 import matasano.util
 import unittest
+
+__author__ = 'aldur'
 
 
 class UtilTestCase(unittest.TestCase):

@@ -1,13 +1,17 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
+"""
+Test block crypto.
+"""
 
 import unittest
 import random
 
 import matasano.blocks
 import matasano.oracle
+
+__author__ = 'aldur'
 
 
 class BlocksTestCase(unittest.TestCase):

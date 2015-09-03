@@ -1,12 +1,16 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
+"""
+Test the attackers.
+"""
 
 import unittest
 import random
 
 import matasano.attacker
+
+__author__ = 'aldur'
 
 
 class AttackerByteAtATimeEcbTestCase(unittest.TestCase):

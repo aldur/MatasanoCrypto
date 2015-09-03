@@ -1,10 +1,14 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
+"""
+Test the stats.
+"""
 
 import unittest
 import matasano.stats
+
+__author__ = 'aldur'
 
 
 class StatsTestCase(unittest.TestCase):

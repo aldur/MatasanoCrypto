@@ -1,14 +1,14 @@
 #!/usr/bin/env/ python
 # encoding: utf-8
 
-__author__ = 'aldur'
-
 """MAC-related tools."""
 
 import functools
 
 import matasano.hash
 import matasano.util
+
+__author__ = 'aldur'
 
 
 def _mac_secret_prefix(
