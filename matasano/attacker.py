@@ -9,6 +9,7 @@ The attacker tools will implemented here.
 
 import abc
 import time
+import math
 
 import matasano.oracle
 import matasano.blocks
@@ -18,6 +19,7 @@ import matasano.util
 import matasano.hash
 import matasano.public
 import matasano.mac
+import matasano.math
 
 
 class Attacker(object):
@@ -186,7 +188,7 @@ class AttackerByteAtATimeEcb(Attacker):
         self.unhidden_string = b""
 
     @staticmethod
-    def get_fill_bytes_len(i: int, block_size: int, prefix_len: int=0) -> int:
+    def get_fill_bytes_len(i: int, block_size: int, prefix_len: int = 0) -> int:
         """
         We want the i-th byte after the input to be the last of a block.
         i.e. i equal to 0 means we want the first byte after the input,
@@ -1252,7 +1254,7 @@ class EavesdropperAckDH(Eavesdropper, matasano.public.DHAckEntity):
             self,
             alice: matasano.public.DHAckEntity,
             bob: matasano.public.DHAckEntity,
-            g: int=1
+            g: int = 1
     ):
         super(EavesdropperAckDH, self).__init__()
 
@@ -1402,3 +1404,58 @@ class EavesdropperSimplifiedSRPServer(
                 return True
         else:
             return False
+
+
+class AttackerRSABroadcast:
+
+    """
+    Perform the Coppersmith's attack.
+    https://en.wikipedia.org/wiki/Coppersmith%27s_Attack
+
+    All the following ciphertexts are encryption of the same message.
+    The public key value is fixed to 3.
+    The modulus of each key is different from the others.
+
+    :param ciphertext_one: The first encryption.
+    :param pub_one: The first public key.
+    :param ciphertext_two: The second encryption.
+    :param pub_two: The second public key.
+    :param ciphertext_three: The third encryption.
+    :param pub_three: The third public key.
+    """
+
+    def __init__(
+            self,
+            ciphertext_one: int,
+            pub_one: matasano.public.RSA_Pub,
+            ciphertext_two: int,
+            pub_two: matasano.public.RSA_Pub,
+            ciphertext_three: int,
+            pub_three: matasano.public.RSA_Pub,
+    ):
+        self.c_0, self.n_0 = ciphertext_one, pub_one.n
+        self.c_1, self.n_1 = ciphertext_two, pub_two.n
+        self.c_2, self.n_2 = ciphertext_three, pub_three.n
+
+    def attack(self) -> bytes:
+        """
+        Perform the attack and return the discovered secret.
+        :return: The discovered secret plaintext.
+        """
+
+        m_s_0 = self.n_1 * self.n_2
+        m_s_1 = self.n_0 * self.n_2
+        m_s_2 = self.n_0 * self.n_1
+
+        n = self.n_0 * self.n_1 * self.n_2
+
+        result = sum([
+            self.c_0 * m_s_0 * matasano.math.modinv(m_s_0, self.n_0),
+            self.c_1 * m_s_1 * matasano.math.modinv(m_s_1, self.n_1),
+            self.c_2 * m_s_2 * matasano.math.modinv(m_s_2, self.n_2),
+        ])
+        result %= n
+
+        return matasano.util.bytes_for_big_int(
+            int(math.ceil(pow(result, 1 / 3.0)))
+        )

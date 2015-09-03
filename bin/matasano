@@ -617,6 +617,28 @@ def thirtynine():
     )
 
 
+def forty():
+    """http://cryptopals.com/sets/5/challenges/40/"""
+    message = b"Secret"
+
+    ciphers_and_keys = list()
+    for _ in range(3):
+        _, public = matasano.public.rsa_keys(e=3)
+        cipher = matasano.public.rsa_encrypt(
+            public, message
+        )
+        ciphers_and_keys += [cipher, public]
+
+    attacker = matasano.attacker.AttackerRSABroadcast(
+        *ciphers_and_keys
+    )
+
+    attack = attacker.attack() == message
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
+
+
 def _create_parser() -> argparse.ArgumentParser:
     """
     Create the command line argument parser.

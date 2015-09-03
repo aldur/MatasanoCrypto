@@ -8,6 +8,7 @@ Public cryptography tools.
 """
 
 import random
+import collections
 
 import matasano.hash
 import matasano.blocks
@@ -28,7 +29,7 @@ dh_nist_p = int(
 dh_nist_g = 2
 
 
-def dh_keys(p: int=dh_nist_p, g: int=dh_nist_g) -> tuple:
+def dh_keys(p: int = dh_nist_p, g: int = dh_nist_g) -> tuple:
     """
     Generate Diffie-Hellman keys.
 
@@ -42,7 +43,22 @@ def dh_keys(p: int=dh_nist_p, g: int=dh_nist_g) -> tuple:
     return p, g, private_key, public_key
 
 
-def rsa_keys(p: int=None, q: int=None, e: int=3) -> tuple:
+"""
+Store RSA public key.
+"""
+RSA_Pub = collections.namedtuple(
+    'RSA_Pub', ['e', 'n']
+)
+
+"""
+Store RSA private key.
+"""
+RSA_Priv = collections.namedtuple(
+    'RSA_Priv', ['d', 'n']
+)
+
+
+def rsa_keys(p: int = None, q: int = None, e: int = 3) -> tuple:
     """
     Generate a new set of RSA keys.
     If p and q are not provided (<= 1),
@@ -64,10 +80,10 @@ def rsa_keys(p: int=None, q: int=None, e: int=3) -> tuple:
     phi_n = (p - 1) * (q - 1)
     d = matasano.math.modinv(e, phi_n)
 
-    return (d, n), (e, n)
+    return RSA_Pub(d, n), RSA_Priv(e, n)
 
 
-def rsa_encrypt(key: tuple, message: bytes) -> int:
+def rsa_encrypt(key: RSA_Pub, message: bytes) -> int:
     """
     Encrypt the message by using RSA.
     Note, this is a deterministic, textbook implementation.
@@ -85,7 +101,7 @@ def rsa_encrypt(key: tuple, message: bytes) -> int:
     )
 
 
-def rsa_decrypt(key: tuple, cipher: int) -> bytes:
+def rsa_decrypt(key: RSA_Priv, cipher: int) -> bytes:
     """
     Decrypt the message by using RSA.
 
@@ -151,7 +167,7 @@ class DHEntity:
         self._keys = None
         self._session_key = -1  # Invalid, has to be >= 0
 
-    def dh_protocol(self, receiver, p: int=None, g: int=None):
+    def dh_protocol(self, receiver, p: int = None, g: int = None):
         """
         Generate a new pair of keys.
         Initiate a new DH-key exchange protocol.
@@ -254,7 +270,7 @@ class DHAckEntity(DHEntity):
             self._p, self._g = p, g
         return True
 
-    def dh_protocol(self, receiver, p: int=None, g: int=None):
+    def dh_protocol(self, receiver, p: int = None, g: int = None):
         """
         Send the group parameters to the receiver and wait for an ACK.
         Generate a new pair of keys.
@@ -297,9 +313,9 @@ class SRPServer:
     def __init__(
             self,
             password: bytes,
-            n: int=dh_nist_p,
-            g: int=2,
-            k: int=3
+            n: int = dh_nist_p,
+            g: int = 2,
+            k: int = 3
     ):
         self.N = n
         self.g = g
@@ -384,9 +400,9 @@ class SRPClient:
             self,
             password: bytes,
             server: SRPServer,
-            n: int=dh_nist_p,
-            g: int=2,
-            k: int=3,
+            n: int = dh_nist_p,
+            g: int = 2,
+            k: int = 3,
     ):
         self.server = server
         self.N = n
@@ -455,10 +471,10 @@ class SRPClientFakeA(SRPClient):
     def __init__(
             self,
             server: SRPServer,
-            n: int=dh_nist_p,
-            g: int=2,
-            k: int=3,
-            A: int=-1
+            n: int = dh_nist_p,
+            g: int = 2,
+            k: int = 3,
+            A: int = -1
     ):
         super().__init__(bytes(), server, n, g, k)
 
@@ -538,9 +554,9 @@ class SimplifiedSRPClient(SRPClient):
             self,
             password: bytes,
             server: SimplifiedSRPServer,
-            n: int=dh_nist_p,
-            g: int=2,
-            k: int=3,
+            n: int = dh_nist_p,
+            g: int = 2,
+            k: int = 3,
     ):
         super().__init__(password, server, n, g, k)
 
