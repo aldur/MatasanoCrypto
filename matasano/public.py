@@ -57,8 +57,15 @@ RSA_Priv = collections.namedtuple(
     'RSA_Priv', ['d', 'n']
 )
 
+"""
+The key pair.
+"""
+RSA_Keys = collections.namedtuple(
+    'RSA_Keys', ['pub', 'priv']
+)
 
-def rsa_keys(p: int = None, q: int = None, e: int = 3) -> tuple:
+
+def rsa_keys(p: int = None, q: int = None, e: int = 3) -> RSA_Keys:
     """
     Generate a new set of RSA keys.
     If p and q are not provided (<= 1),
@@ -80,7 +87,7 @@ def rsa_keys(p: int = None, q: int = None, e: int = 3) -> tuple:
     phi_n = (p - 1) * (q - 1)
     d = matasano.math.modinv(e, phi_n)
 
-    return RSA_Pub(d, n), RSA_Priv(e, n)
+    return RSA_Keys(RSA_Pub(d, n), RSA_Priv(e, n))
 
 
 def rsa_encrypt(key: RSA_Pub, message: bytes) -> int:
