@@ -7,7 +7,6 @@ Test the utils.
 
 import matasano.util
 import unittest
-import random
 
 __author__ = 'aldur'
 
