@@ -139,10 +139,10 @@ class OracleAesEcbCbc(Oracle):
         b = matasano.blocks.pkcs_7(b, 16)
 
         ciphertext = self.cipher(key, b)
-        if isinstance(ciphertext, collections.Sequence):
-            return ciphertext[0]
-        else:
+        if isinstance(ciphertext, bytes) or isinstance(ciphertext, bytearray):
             return ciphertext
+        else:
+            return ciphertext[0]
 
     def guess(self, guess: bool) -> bool:
         """

@@ -572,7 +572,7 @@ class AttackerCBCPadding(Attacker):
 
             for i in reversed(range(16)):
                 padding_value = 16 - i
-                trap = matasano.oracle.random_bytes_range(i)
+                trap = matasano.util.random_bytes_range(i)
 
                 for j in range(256):
                     _trap = trap + bytes((j,))

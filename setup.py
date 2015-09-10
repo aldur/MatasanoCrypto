@@ -17,6 +17,7 @@ setup(
     packages=['matasano'],
     install_requires=[
         'pycrypto',
+        'colorama'
     ],
 
     scripts=['bin/matasano'],

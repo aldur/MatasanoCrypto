@@ -28,8 +28,15 @@ dh_nist_p = int(
 )
 dh_nist_g = 2
 
+"""
+DH parameters.
+"""
+DH_params = collections.namedtuple(
+    "DH_params", ["p", "g", "priv", "pub"]
+)
 
-def dh_keys(p: int = dh_nist_p, g: int = dh_nist_g) -> tuple:
+
+def dh_keys(p: int = dh_nist_p, g: int = dh_nist_g) -> DH_params:
     """
     Generate Diffie-Hellman keys.
 
@@ -40,7 +47,7 @@ def dh_keys(p: int = dh_nist_p, g: int = dh_nist_g) -> tuple:
     private_key = random.randint(0, p)
     public_key = pow(g, private_key, p)
 
-    return p, g, private_key, public_key
+    return DH_params(p, g, private_key, public_key)
 
 
 """

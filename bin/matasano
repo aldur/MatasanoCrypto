@@ -15,6 +15,10 @@ import matasano.public
 import base64
 import binascii
 import argparse
+import io
+import sys
+import contextlib
+import colorama
 
 __author__ = "aldur"
 
@@ -46,29 +50,92 @@ def _number_to_words(n: int) -> str:
             raise Exception('Number out of range')
 
 
+def challenge(challenge_f):
+    """
+    Decorator for challenges function.
+
+    :param challenge_f: The challenge function.
+    :return: The decorated function.
+    """
+
+    class Tee(io.StringIO):
+        """
+        Print standard output as usual,
+        and at the same time keep track of what
+        is being printed.
+        """
+
+        def write(self, b: bytes):
+            """
+            Write the buffer on the standard output
+            before calling the super implementation.
+
+            :param b: The buffer to be written.
+            """
+            sys.__stdout__.write(b)
+            return super().write(b)
+
+    def decorated_challenge():
+        """
+        Execute the function and return to screen the result.
+        """
+        captured_stdout = Tee()
+        print("Executing challenge: {}.\n".format(challenge_f.__name__))
+
+        with contextlib.redirect_stdout(captured_stdout):
+            result = challenge_f()
+
+        v = captured_stdout.getvalue()
+        if v and not v.endswith("\n\n"):
+            print("")
+
+        if result is not None:
+            print(
+                "{}Challenge {}.{}".format(
+                    colorama.Fore.GREEN if result else colorama.Fore.RED,
+                    "completed" if result else "failed",
+                    colorama.Fore.RESET
+            ))
+        else:
+            print("Challenge did not require explicit completion, you're good to go.")
+
+    return decorated_challenge
+
+
+@challenge
 def one():
     """http://cryptopals.com/sets/1/challenges/1/"""
     hex_input = "49276d206b696c6c696e6720796f7" \
                 "57220627261696e206c696b652061" \
                 "20706f69736f6e6f7573206d75736" \
                 "8726f6f6d"
+    expected_b64_output = b"SSdtIGtpbGxpbmcgeW" \
+                          b"91ciBicmFpbiBsaWtl" \
+                          b"IGEgcG9pc29ub3VzIG" \
+                          b"11c2hyb29t"
     print("HEX: {}".format(hex_input))
-
     hex_input = bytearray.fromhex(hex_input)
     b64_output = matasano.util.hex_to_b64(hex_input)
-    print("B64: {}".format(b64_output))
+    print("B64: {}".format(b64_output.decode("ascii")))
+
+    return b64_output == expected_b64_output
 
 
+@challenge
 def two():
     """http://cryptopals.com/sets/1/challenges/2/"""
     a = bytearray.fromhex("1c0111001f010100061a024b53535009181c")
     b = bytearray.fromhex("686974207468652062756c6c277320657965")
+
     c = bytearray(matasano.util.xor(a, b))
     print("'{}' xor '{}' = '{}'".format(
         a.decode("ascii"), b.decode("ascii"), c.decode("ascii")
     ))
 
+    return c == bytes.fromhex("746865206b696420646f6e277420706c6179")
 
+
+@challenge
 def three():
     """http://cryptopals.com/sets/1/challenges/3/"""
     s = bytearray.fromhex(
@@ -76,12 +143,14 @@ def three():
     )
     key = matasano.stats.most_likely_xor_chars(s)[0]
     plaintext = matasano.util.xor_char(s, key).decode("ascii")
-    print("Key: {}, Plaintext: {}".format(key, plaintext))
+    print("Key: {}, Plaintext: {}.".format(key, plaintext))
 
 
+@challenge
 def four():
     """http://cryptopals.com/sets/1/challenges/4/"""
     input_path = "input/4.txt"
+
     with open(input_path) as f:
         plaintexts = []
         for line in f:
@@ -101,19 +170,25 @@ def four():
         ))
 
 
+@challenge
 def five():
     """http://cryptopals.com/sets/1/challenges/5/"""
-    lines = """Burning 'em, if you ain't quick and nimble
-I go crazy when I hear a cymbal""".encode("ascii")
+    lines = b"Burning 'em, if you ain't quick and nimble\n" \
+            b"I go crazy when I hear a cymbal"
     key = "ICE".encode("ascii")
-    import binascii
+    expected = b"0b3637272a2b2e63622c2e69692a23693a2a3c63" \
+               b"24202d623d63343c2a26226324272765272a282b" \
+               b"2f20430a652e2c652a3124333a653e2b2027630c" \
+               b"692b20283165286326302e27282f"
+
+    result = binascii.hexlify(matasano.util.repeating_xor(lines, key))
     print("Result: {}".format(
-        binascii.hexlify(
-            matasano.util.repeating_xor(lines, key)
-        )
+        result.decode("ascii")
     ))
+    return result == expected
 
 
+@challenge
 def six():
     """http://cryptopals.com/sets/1/challenges/6/"""
     with open("input/6.txt", 'r') as f:
@@ -142,6 +217,7 @@ def six():
         )
 
 
+@challenge
 def seven():
     """http://cryptopals.com/sets/1/challenges/7/"""
     with open("input/7.txt") as f:
@@ -152,21 +228,26 @@ def seven():
         ))
 
 
+@challenge
 def eight():
     """http://cryptopals.com/sets/1/challenges/8/"""
     with open("input/8.txt", "rb") as f:
         for line in f:
             if matasano.blocks.any_equal_block(line):
-                print("Likely to be ECB:\n{}".format(line.decode("ascii")))
+                print("Likely to be ECB.")
 
 
+@challenge
 def nine():
     """http://cryptopals.com/sets/2/challenges/9/"""
     b = "YELLOW SUBMARINE".encode("ascii")
     size = 20
-    print("PKCS padding: {}".format(matasano.blocks.pkcs_7(b, size)))
+    padding = matasano.blocks.pkcs_7(b, size)
+    print("PKCS padding: {}".format(padding))
+    return padding == b'YELLOW SUBMARINE\x04\x04\x04\x04'
 
 
+@challenge
 def ten():
     """http://cryptopals.com/sets/2/challenges/10/"""
     with open("input/10.txt", "rb") as f:
@@ -179,6 +260,7 @@ def ten():
         )
 
 
+@challenge
 def eleven():
     """http://cryptopals.com/sets/2/challenges/11/"""
     oracle = matasano.oracle.OracleAesEcbCbc()
@@ -201,56 +283,57 @@ def eleven():
             "ECB" if ecb else "CBC"
         )
     )
+    result = oracle.guess(ecb)
     print(
         "Guess is {}.".format(
-            "correct" if oracle.guess(ecb) else "wrong"
+            "correct" if result else "wrong"
         )
     )
+    return result
 
 
+@challenge
 def twelve():
     """http://cryptopals.com/sets/2/challenges/12/"""
     oracle = matasano.oracle.OracleByteAtATimeEcb()
     attacker = matasano.attacker.AttackerByteAtATimeEcb(oracle)
-    attack = attacker.attack()
+    result = attacker.attack()
     print("Guessed hidden string is:\n{}".format(
         attacker.unhidden_string.decode("ascii")
     ))
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    return result
 
 
+@challenge
 def thirteen():
     """http://cryptopals.com/sets/2/challenges/13/"""
     oracle = matasano.oracle.OracleProfileForUser()
     attacker = matasano.attacker.AttackerProfileForUser(oracle)
     attacker.get_base_user_profile()
     attacker.get_role_block()
-    print("The attack result was: {}.".format(
-        "success" if attacker.attack() else "failure"
-    ))
+    result = attacker.attack()
+    return result
 
 
+@challenge
 def fourteen():
     """http://cryptopals.com/sets/2/challenges/14/"""
     oracle = matasano.oracle.OracleHarderByteAtATimeEcb()
     attacker = matasano.attacker.AttackerHarderByteAtATimeEcb(oracle)
     attacker.discover_block_size()
+
     print("Prefix len: {}.".format(
         attacker.discover_fixed_string_len())
     )
 
-    attack = attacker.attack()
-
+    result = attacker.attack()
     print("Guessed hidden string is:\n{}".format(
         attacker.unhidden_string.decode("ascii")
     ))
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    return result
 
 
+@challenge
 def fifteen():
     """http://cryptopals.com/sets/2/challenges/15/"""
     pads = (
@@ -267,6 +350,7 @@ def fifteen():
             print("Padded buffer {} is invalid.".format(padded))
 
 
+@challenge
 def sixteen():
     """http://cryptopals.com/sets/2/challenges/16/"""
     oracle = matasano.oracle.OracleBitflipping(
@@ -274,29 +358,27 @@ def sixteen():
     )
     attacker = matasano.attacker.AttackerBitFlippingCBC(oracle)
 
-    attack = attacker.attack()
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    result = attacker.attack()
+    return result
 
 
+@challenge
 def seventeen():
     """http://cryptopals.com/sets/3/challenges/17/"""
     oracle = matasano.oracle.OracleCBCPadding("input/17.txt")
     attacker = matasano.attacker.AttackerCBCPadding(oracle)
 
-    attack = attacker.attack()
+    result = attacker.attack()
     print("Guessed hidden string is:\n{}".format(
         attacker.discovered_string.decode("ascii")
     ))
     print("Decoding it produces:\n{}".format(
         base64.b64decode(attacker.discovered_string).decode("ascii")
     ))
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    return result
 
 
+@challenge
 def eighteen():
     """http://cryptopals.com/sets/3/challenges/18/"""
     key = "YELLOW SUBMARINE".encode("ascii")
@@ -309,34 +391,35 @@ def eighteen():
     print("The decryption produced: \n{}.".format(
         matasano.blocks.aes_ctr(
             key, b
-        )[0]
+        )[0].decode("ascii")
     ))
 
 
 def _fixed_nonce_ctr(oracle: matasano.oracle.OracleFixedNonceCTR):
     attacker = matasano.attacker.AttackerFixedNonceCTR(oracle)
 
-    attack = attacker.attack()
+    result = attacker.attack()
     print("Discovered strings:\n{}".format(
         "\n".join(b.decode("ascii") for b in attacker.discovered_strings)
     ))
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    return result
 
 
+@challenge
 def nineteen():
     """http://cryptopals.com/sets/3/challenges/19/"""
     oracle = matasano.oracle.OracleFixedNonceCTR("input/19.txt")
-    _fixed_nonce_ctr(oracle)
+    return _fixed_nonce_ctr(oracle)
 
 
+@challenge
 def twenty():
     """http://cryptopals.com/sets/3/challenges/20/"""
     oracle = matasano.oracle.OracleFixedNonceCTR("input/20.txt")
-    _fixed_nonce_ctr(oracle)
+    return _fixed_nonce_ctr(oracle)
 
 
+@challenge
 def twentyone():
     """http://cryptopals.com/sets/3/challenges/21/"""
     mt_prng = matasano.prng.MT19937(42)
@@ -345,47 +428,45 @@ def twentyone():
     ))
 
 
+@challenge
 def twentytwo():
     """http://cryptopals.com/sets/3/challenges/22/"""
     print("Please wait while the oracle does its job...")
     oracle = matasano.oracle.OracleMT19937Seed()
     attacker = matasano.attacker.AttackerMT19937Seed(oracle)
-    attack = attacker.attack()
+    result = attacker.attack()
     print("Discovered seed:\n{}".format(
         attacker.discovered_seed
     ))
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    return result
 
 
+@challenge
 def twentythree():
     """http://cryptopals.com/sets/3/challenges/23/"""
     oracle = matasano.oracle.OracleMT19937Clone()
     attacker = matasano.attacker.AttackerMT19937Clone(oracle)
-    attack = attacker.attack()
+    result = attacker.attack()
     print("Discovered next random numbers:\n{}".format(
         attacker.next_random_numbers
     ))
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    return result
 
 
+@challenge
 def twentyfour():
     """http://cryptopals.com/sets/3/challenges/24/"""
     oracle = matasano.oracle.OracleMT19937Stream()
     attacker = matasano.attacker.AttackerMT19937Stream(oracle)
     print("Please wait while brute-forcing the oracle's seed...")
-    attack = attacker.attack()
+    result = attacker.attack()
     print("Discovered seed:\n{}".format(
         attacker.key
     ))
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    return result
 
 
+@challenge
 def twentyfive():
     """http://cryptopals.com/sets/4/challenges/25/"""
     with open("input/25.txt", "rb") as inputFile:
@@ -394,15 +475,14 @@ def twentyfive():
         )
         attacker = matasano.attacker.AttackerRandomAccessCTR(oracle)
         print("Please wait while brute-forcing the oracle's plaintext...")
-        attack = attacker.attack()
+        result = attacker.attack()
         print("Discovered plaintext:\n{}".format(
             attacker.discovered_plaintext.decode("ascii")
         ))
-        print("The attack results was: {}.".format(
-            "success" if attack else "failure"
-        ))
+        return result
 
 
+@challenge
 def twentysix():
     """http://cryptopals.com/sets/4/challenges/26/"""
     oracle = matasano.oracle.OracleBitflipping(
@@ -410,29 +490,26 @@ def twentysix():
     )
     attacker = matasano.attacker.AttackerBitFlippingCTR(oracle)
 
-    attack = attacker.attack()
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    result = attacker.attack()
+    return result
 
 
+@challenge
 def twentyseven():
     """http://cryptopals.com/sets/4/challenges/27/"""
     oracle = matasano.oracle.OracleCBCKeyIV()
     attacker = matasano.attacker.AttackerCBCKeyIV(oracle)
 
-    attack = attacker.attack()
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    result = attacker.attack()
+    return result
 
 
+@challenge
 def twentyeight():
     """http://cryptopals.com/sets/4/challenges/28/"""
     key = b"SECRET"
     message = b"MESSAGE"
 
-    import binascii
     print(
         "SHA1({} | {}) = {}".format(
             key.decode("ascii"),
@@ -445,96 +522,98 @@ def twentyeight():
     oracle = matasano.oracle.OracleCBCKeyIV()
     attacker = matasano.attacker.AttackerCBCKeyIV(oracle)
 
-    attack = attacker.attack()
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    result = attacker.attack()
+    return result
 
 
+@challenge
 def twentynine():
     """http://cryptopals.com/sets/4/challenges/29/"""
     oracle = matasano.oracle.OracleSHA1KeyedMac()
     attacker = matasano.attacker.AttackerSHA1KeyedMac(oracle)
 
-    attack = attacker.attack()
+    result = attacker.attack()
     print(
         "Forged message: {}.\n"
         "Forged MAC: {}.".format(
             attacker.forged_message,
-            binascii.hexlify(attacker.forged_mac)
+            binascii.hexlify(attacker.forged_mac).decode("ascii")
         )
     )
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    return result
 
 
+@challenge
 def thirty():
     """http://cryptopals.com/sets/4/challenges/30/"""
     oracle = matasano.oracle.OracleMD4KeyedMac()
     attacker = matasano.attacker.AttackerMD4KeyedMac(oracle)
 
-    attack = attacker.attack()
+    result = attacker.attack()
     print(
         "Forged message: {}.\n"
         "Forged MAC: {}.".format(
             attacker.forged_message,
-            binascii.hexlify(attacker.forged_mac)
+            binascii.hexlify(attacker.forged_mac).decode("ascii")
         )
     )
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    return result
 
 
-def thirtyone():
-    """http://cryptopals.com/sets/4/challenges/31/"""
+def _remote_sha1_hmac():
     oracle = matasano.oracle.OracleRemoteSHA1HMac()
     attacker = matasano.attacker.AttackerRemoteSHA1HMac(oracle)
 
-    print("Please wait while brute-forcing the MAC.")
-    attack = attacker.attack()
+    print("Please wait while brute-forcing the MAC...")
+    result = attacker.attack()
     print(
         "Forged MAC: {}.".format(
-            binascii.hexlify(attacker.forged_mac)
+            binascii.hexlify(attacker.forged_mac).decode("ascii")
         )
     )
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    return result
 
 
+@challenge
+def thirtyone():
+    """http://cryptopals.com/sets/4/challenges/31/"""
+    return _remote_sha1_hmac()
+
+
+@challenge
 def thirtytwo():
     """http://cryptopals.com/sets/4/challenges/32/"""
-    return thirtyone()
+    return _remote_sha1_hmac()
 
 
+@challenge
 def thirtythree():
     """http://cryptopals.com/sets/5/challenges/33/"""
-    private, public = matasano.public.dh_keys()
-    print("Generated DH keys: {}, {}.".format(
-        private, public
+    dh_params = matasano.public.dh_keys()
+    print("Generated DH keys:\n{},\n{}.".format(
+        dh_params.priv, dh_params.pub
     ))
 
 
+@challenge
 def thirtyfour():
     """http://cryptopals.com/sets/5/challenges/34/"""
     alice, bob = matasano.public.DHEntity(), matasano.public.DHEntity()
     eve = matasano.attacker.EavesdropperDH(alice, bob)
 
-    attack = eve.attack()
+    result = eve.attack()
     print("Eavesdropped message: \"{}\".".format(
         eve.eavesdropped_message.decode("ascii")
     ))
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    return result
 
 
+@challenge
 def thirtyfive():
     """http://cryptopals.com/sets/5/challenges/35/"""
     alice, bob = matasano.public.DHAckEntity(), matasano.public.DHAckEntity()
 
+    results = []
     p = matasano.public.dh_nist_p
     for g in [1, p - 1, p]:
         print(
@@ -542,15 +621,19 @@ def thirtyfive():
         )
         eve = matasano.attacker.EavesdropperAckDH(alice, bob, g)
 
-        attack = eve.attack()
+        result = eve.attack()
         print("Eavesdropped message: \"{}\".".format(
             eve.eavesdropped_message.decode("ascii")
         ))
-        print("The attack results was: {}.".format(
-            "success" if attack else "failure"
+        print("The attack result was: {}.".format(
+            "success" if result else "failure"
         ))
+        results.append(result)
+
+    return all(results)
 
 
+@challenge
 def thirtysix():
     """http://cryptopals.com/sets/5/challenges/36/"""
     password = b"A secret password"
@@ -559,13 +642,16 @@ def thirtysix():
 
     result = client.srp_protocol()
     if result:
-        print("Success. Negotiated key: {}.".format(
+        print("Negotiated key: {}.".format(
             binascii.hexlify(client.key).decode("ascii")
         ))
     else:
-        print("Failure, something went wrong during the protocol.")
+        print("Something went wrong during the protocol.")
+
+    return result
 
 
+@challenge
 def thirtyseven():
     """http://cryptopals.com/sets/5/challenges/37/"""
     password = b"A secret password"
@@ -581,13 +667,16 @@ def thirtyseven():
 
     result = client.srp_protocol()
     if result:
-        print("Success. Negotiated key: {}.".format(
+        print("Negotiated key: {}.".format(
             binascii.hexlify(client.key).decode("ascii")
         ))
     else:
-        print("Failure, something went wrong during the protocol.")
+        print("Something went wrong during the protocol.")
+
+    return result
 
 
+@challenge
 def thirtyeight():
     """http://cryptopals.com/sets/5/challenges/38/"""
     password = matasano.util.get_random_password()
@@ -600,23 +689,27 @@ def thirtyeight():
     client.srp_protocol()
     result = attacker.attack()
     if result:
-        print("Success. Cracked password: {}.".format(
+        print("Cracked password: {}.".format(
             attacker.client_password.decode("ascii")
         ))
     else:
-        print("Failure, something went wrong during the brute-force.")
+        print("Something went wrong during the brute-force.")
+
+    return result
 
 
+@challenge
 def thirtynine():
     """http://cryptopals.com/sets/5/challenges/39/"""
     private, public = matasano.public.rsa_keys()
     print(
         "Generated RSA keys.\ne: {}.\nd: {}.\nn: {}.".format(
-            public[0], private[0], private[1]
+            public.e, private.d, private.n
         )
     )
 
 
+@challenge
 def forty():
     """http://cryptopals.com/sets/5/challenges/40/"""
     message = b"Secret"
@@ -633,32 +726,28 @@ def forty():
         *ciphers_and_keys
     )
 
-    attack = attacker.attack() == message
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    result = attacker.attack() == message
+    return result
 
 
+@challenge
 def fortyone():
     """http://cryptopals.com/sets/6/challenges/41/"""
     oracle = matasano.oracle.OracleUnpaddedRSARecovery()
     attacker = matasano.attacker.AttackerUnpaddedRSARecovery(oracle)
 
-    attack = attacker.attack()
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    result = attacker.attack()
+    return result
 
 
+@challenge
 def fortytwo():
     """http://cryptopals.com/sets/6/challenges/42/"""
     oracle = matasano.oracle.OracleRSAPaddedSignatureVerifier(b"hi mom")
     attacker = matasano.attacker.AttackerRSAPaddedSignatureVerifier(oracle)
 
-    attack = attacker.attack()
-    print("The attack results was: {}.".format(
-        "success" if attack else "failure"
-    ))
+    result = attacker.attack()
+    return result
 
 
 def _create_parser() -> argparse.ArgumentParser:
@@ -682,6 +771,8 @@ def _create_parser() -> argparse.ArgumentParser:
 
 
 if __name__ == '__main__':
+    colorama.init()
+
     command_line_parser = _create_parser()
     args = vars(command_line_parser.parse_args())
 
