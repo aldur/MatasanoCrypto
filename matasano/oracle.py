@@ -25,6 +25,7 @@ import matasano.blocks
 import matasano.util
 import matasano.prng
 import matasano.mac
+import matasano.math
 import matasano.hash
 import matasano.public
 
@@ -1238,8 +1239,8 @@ class OracleRSAPaddedSignatureVerifier(Oracle):
     def __init__(self, message: bytes):
         super(OracleRSAPaddedSignatureVerifier, self).__init__()
         self._keys = matasano.public.rsa_keys(
-            p=Crypto.Util.number.getStrongPrime(N=2048, e=3),
-            q=Crypto.Util.number.getStrongPrime(N=2048, e=3),
+            p=matasano.math.random_big_prime(N=2048),
+            q=matasano.math.random_big_prime(N=2048),
             e=3
         )
         self._message = message

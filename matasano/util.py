@@ -216,15 +216,20 @@ def left_rotate(n: int, b: int) -> int:
     return ((n << b) | ((n & 0xffffffff) >> (32 - b))) & 0xffffffff
 
 
-def bytes_for_int(n: int, byteorder='little') -> bytes:
+def bytes_for_int(n: int, length: int=None, byteorder='little') -> bytes:
     """
     Represent a big int in little endian bytes.
 
     :param n: The int to be represented in bytes.
+    :param length: The maximum number of bytes used.
     :param byteorder: The byteorder of the representation.
     :return: A byte representation of the int.
     """
     assert n >= 0
+
+    if length is not None:
+        assert length > 0
+        return n.to_bytes(length, byteorder)
 
     if n == 0:
         return bytes(1)

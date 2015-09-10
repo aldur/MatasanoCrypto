@@ -70,13 +70,22 @@ def integer_kth_root(n: int, k: int) -> int:
         u = t // k
     return s
 
+
 integer_cube_root = functools.partial(
     integer_kth_root,
     k=3
 )
 
 
-random_big_prime = functools.partial(
-    Crypto.Util.number.getStrongPrime,
-    N=1024  # bits
-)
+def random_big_prime(N: int=1024, e=None) -> int:
+    """
+    Generate a random big prime of N bits.
+    :param N: The number of bits composing N.
+    :param e: Useful to avoid problems during RSA key-generation.
+    :return: A new big random prime.
+    """
+    if e is not None:
+        return Crypto.Util.number.getStrongPrime(N, e)
+    else:
+        return Crypto.Util.number.getStrongPrime(N)
+

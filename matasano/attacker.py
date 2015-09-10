@@ -1540,8 +1540,9 @@ class AttackerRSAPaddedSignatureVerifier(Attacker):
         forged_message = pow(forged_signature, 3)
         assert forged_message < pub.n
 
-        forged_message = forged_message.to_bytes(
-            len(padded_message),
+        forged_message = matasano.util.bytes_for_int(
+            forged_message,
+            length=len(padded_message),
             byteorder=byteorder
         )
 
