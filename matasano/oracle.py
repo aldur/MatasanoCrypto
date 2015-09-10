@@ -13,16 +13,19 @@ import abc
 import re
 import collections
 import time
+import functools
 import http.server
 import http.client
 import urllib.parse
 import threading
 import socketserver
+import Crypto.Util.number
 
 import matasano.blocks
 import matasano.util
 import matasano.prng
 import matasano.mac
+import matasano.hash
 import matasano.public
 
 __author__ = 'aldur'
@@ -128,12 +131,12 @@ class OracleAesEcbCbc(Oracle):
         self._challenge_done = True
 
         b = args[0]
-        key = random_aes_key()
+        key = matasano.util.random_aes_key()
 
         # Add some randomness
-        b = random_bytes_random_range(5, 10) + b + random_bytes_random_range(5, 10)
+        b = matasano.util.random_bytes_random_range(5, 10) + b + matasano.util.random_bytes_random_range(5, 10)
         # Pad if necessary
-        b = matasano.blocks.pkcs(b, 16)
+        b = matasano.blocks.pkcs_7(b, 16)
 
         ciphertext = self.cipher(key, b)
         if isinstance(ciphertext, collections.Sequence):
@@ -173,7 +176,7 @@ class OracleProfileForUser(Oracle):
 
     def __init__(self):
         super(Oracle, self).__init__()
-        self._key = random_aes_key()
+        self._key = matasano.util.random_aes_key()
         self._last_uid = -1
         self._has_guessed = False
 
@@ -214,7 +217,7 @@ class OracleProfileForUser(Oracle):
         profile = self._build_profile(mail.decode("ascii"))
         return matasano.blocks.aes_ecb(
             self._key,
-            matasano.blocks.pkcs(profile.encode("ascii"), 16)
+            matasano.blocks.pkcs_7(profile.encode("ascii"), 16)
         )
 
     def guess(self, guess: bytes) -> bool:
@@ -279,7 +282,7 @@ class OracleBitflipping(Oracle):
         It is the same for the whole module lifetime,
         but it's hidden from anyone (kinda)
         """
-        self._consistent_key = random_aes_key()
+        self._consistent_key = matasano.util.random_aes_key()
 
         """
         The string prefix.
@@ -320,7 +323,7 @@ class OracleBitflipping(Oracle):
         input_string = self._prefix + input_string + self._suffix
 
         if self.needs_padding:
-            input_string = matasano.blocks.pkcs(input_string, 16)
+            input_string = matasano.blocks.pkcs_7(input_string, 16)
 
         ciphertext, _ = self.encryption_function(
             self._consistent_key,
@@ -367,7 +370,7 @@ class OracleByteAtATimeEcb(Oracle):
         It is the same for the whole oracle lifetime,
         but it's hidden from anyone (kinda)
         """
-        self._consistent_key = random_aes_key()
+        self._consistent_key = matasano.util.random_aes_key()
         """
         And this is the unknown string, that the attacker has to find.
         """
@@ -433,7 +436,7 @@ class OracleHarderByteAtATimeEcb(OracleByteAtATimeEcb):
         """
         The fixed string prefix.
         """
-        self._prefix = random_bytes_random_range(1, 32)
+        self._prefix = matasano.util.random_bytes_random_range(1, 32)
 
     def experiment(self, *args: bytes) -> bytes:
         """
@@ -454,43 +457,6 @@ class OracleHarderByteAtATimeEcb(OracleByteAtATimeEcb):
             self._consistent_key,
             b
         )
-
-
-def random_bytes_random_range(low: int, high: int) -> bytes:
-    """
-    Generate low to high random bytes.
-
-    :param low: The minimum number of bytes to generate.
-    :param high: The maximum (inclusive) number of bytes to generate.
-    :return: A random range of random bytes s.t. low <= len(output) <= max.
-    """
-    return bytes(
-        random.randint(0, 255)
-        for _
-        in range(0, random.randint(low, high))
-    )
-
-
-def random_bytes_range(length: int) -> bytes:
-    """
-    Generate a sequence of specified length of random bytes.
-
-    :param length: The len of the range.
-    :return: A new range of random bytes.
-    """
-    return bytes(
-        random.randint(0, 255)
-        for _
-        in range(0, length)
-    )
-
-
-def random_aes_key() -> bytes:
-    """Generate a random AES key (16 bytes)
-
-    :return: 16 bytes.
-    """
-    return random_bytes_range(16)
 
 
 class OracleCBCPadding(Oracle):
@@ -516,11 +482,11 @@ class OracleCBCPadding(Oracle):
         :param strings_path: The path to the string file.
         """
         super(Oracle, self).__init__()
-        self._consistent_key = random_aes_key()
+        self._consistent_key = matasano.util.random_aes_key()
 
         with open(strings_path, "rb") as strings:
             s = random.choice(strings.readlines()).rstrip()
-            self._hidden_string = matasano.blocks.pkcs(s, 16)
+            self._hidden_string = matasano.blocks.pkcs_7(s, 16)
 
         self._guessed = False
 
@@ -570,7 +536,7 @@ class OracleCBCPadding(Oracle):
         )
 
         try:
-            matasano.blocks.un_pkcs(plaintext, 16)
+            matasano.blocks.un_pkcs_7(plaintext, 16)
         except matasano.blocks.BadPaddingException:
             return False
         else:
@@ -596,7 +562,7 @@ class OracleFixedNonceCTR(Oracle):
         :param strings_path: The path to the strings file.
         """
         super(Oracle, self).__init__()
-        self._consistent_key = random_aes_key()
+        self._consistent_key = matasano.util.random_aes_key()
 
         with open(strings_path, "rb") as buffers:
             self._buffers = tuple(
@@ -784,7 +750,7 @@ class OracleMT19937Stream(Oracle):
         self._seed = random.randint(0, 2 ** 16 - 1)
         self.known_plaintext = b"A" * 16
         self._plaintext = bytes(
-            random_bytes_random_range(
+            matasano.util.random_bytes_random_range(
                 1, random.randint(2, 10)
             )
         ) + self.known_plaintext
@@ -838,7 +804,7 @@ class OracleRandomAccessCTR(Oracle):
         super().__init__()
         assert plaintext
 
-        self._consistent_key = random_aes_key()
+        self._consistent_key = matasano.util.random_aes_key()
         self._original_plaintext = plaintext
         self._plaintext = bytearray(plaintext)
         self._guessed = False
@@ -895,7 +861,7 @@ class OracleCBCKeyIV(Oracle):
 
     def __init__(self):
         super().__init__()
-        self._consistent_key = random_aes_key()
+        self._consistent_key = matasano.util.random_aes_key()
 
         self._guessed = False
 
@@ -970,7 +936,7 @@ class OracleKeyedMac(Oracle):
     def __init__(self, mac_function):
         super().__init__()
         self.mac_function = mac_function
-        self._secret_key = random_aes_key()
+        self._secret_key = matasano.util.random_aes_key()
         self.key_len = len(self._secret_key)  # An attacker could brute-force it
         self._messages = set()
 
@@ -1118,7 +1084,7 @@ class OracleRemoteSHA1HMac(Oracle):
         super().__init__()
         self._remote_port = 8000
 
-        self._consistent_key = random_aes_key()
+        self._consistent_key = matasano.util.random_aes_key()
 
         self.http_thread = None
         self.start_http_server()
@@ -1200,7 +1166,7 @@ class OracleUnpaddedRSARecovery(Oracle):
         super(OracleUnpaddedRSARecovery, self).__init__()
 
         self._keys = matasano.public.rsa_keys()
-        self._secret = matasano.util.bytes_for_big_int(
+        self._secret = matasano.util.bytes_for_int(
             random.randint(1, self._keys.pub.n)
         )
 
@@ -1250,3 +1216,64 @@ class OracleUnpaddedRSARecovery(Oracle):
 
         self._decrypted.add(plaintext)
         return plaintext
+
+
+class OracleRSAPaddedSignatureVerifier(Oracle):
+
+    """
+    An oracle that verify RSA signatures.
+    Before being signed messages are hashed
+    and padded.
+
+    :param message: The message to be discovered by the attacker.
+    """
+
+    block_size = 1024 // 8
+    pad_function = functools.partial(
+        matasano.blocks.pkcs_1_5,
+        size=block_size
+    )
+    hash_function = matasano.hash.SHA1
+
+    def __init__(self, message: bytes):
+        super(OracleRSAPaddedSignatureVerifier, self).__init__()
+        self._keys = matasano.public.rsa_keys(
+            p=Crypto.Util.number.getStrongPrime(N=2048, e=3),
+            q=Crypto.Util.number.getStrongPrime(N=2048, e=3),
+            e=3
+        )
+        self._message = message
+
+    def challenge(self) -> tuple:
+        """
+        Return the message for which a signature
+        needs to be forged and the public key used to verify it.
+        """
+        return self._message, self._keys.pub
+
+    def guess(self, signature: int) -> bool:
+        """
+        Check the signature provided from the caller.
+        Return true if is valid.
+
+        :param signature: The signature provided by the caller.
+        :return: True if the signature is valid.
+        """
+        signed_message = matasano.util.bytes_for_int(
+            pow(signature, self._keys.pub.e, self._keys.pub.n),
+            byteorder="big"
+        )
+
+        this = OracleRSAPaddedSignatureVerifier
+        expected_message = this.pad_function(
+            this.hash_function(self._message)
+        )[1:]  # Technical detail, int to bytes conversion looses leading 0x00
+
+        return expected_message[:this.block_size] in signed_message[:this.block_size]
+
+    def experiment(self, *args: bytes) -> bytes:
+        """
+        This oracle doesn't provide experiments.
+        :param args: An iterable of bytes.
+        """
+        return super().experiment(args)

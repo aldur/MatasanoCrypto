@@ -118,13 +118,62 @@ def rsa_decrypt(key: RSA_Priv, cipher: int) -> bytes:
     """
     d, n = key
 
-    return matasano.util.bytes_for_big_int(
+    return matasano.util.bytes_for_int(
         pow(
             cipher,
             d,
             n
         )
     )
+
+
+def rsa_sign(key: RSA_Priv, message_digest_block: bytes) -> int:
+    """
+    Sign the message by using RSA.
+
+    :param key: The RSA private key (d, n).
+    :param message_digest_block: The padded digest of the message to be signed.
+    :return: The signature of the message.
+    """
+    assert key
+    assert message_digest_block
+
+    d, n = key
+    message_digest_block = int.from_bytes(
+        message_digest_block, byteorder="little"
+    )
+
+    return pow(
+        message_digest_block,
+        d,
+        n
+    )
+
+
+def rsa_verify(
+        key: RSA_Pub,
+        message_digest_block: bytes,
+        signature: int
+) -> bool:
+    """
+    Verify the message's signature by using RSA.
+
+    :param key: The RSA private key (d, n).
+    :param message_digest_block: The padded hash of the
+        message whose signature needs to be signed.
+    :param signature: The provided message signature.
+    :return: True if the signature is correct.
+    """
+    assert key
+    assert message_digest_block
+    assert signature
+
+    e, n = key.e, key.n
+
+    signed_message = matasano.util.bytes_for_int(
+        pow(signature, e, n)
+    )
+    return signed_message == message_digest_block
 
 
 class DHEntity:
@@ -146,7 +195,7 @@ class DHEntity:
 
         h = matasano.hash.SHA1
         digest = h(
-            matasano.util.bytes_for_big_int(k)
+            matasano.util.bytes_for_int(k)
         )
 
         assert len(digest) > 16
@@ -338,7 +387,7 @@ class SRPServer:
 
         :return: the generated int and the salt (as bytes).
         """
-        salt = matasano.util.bytes_for_big_int(
+        salt = matasano.util.bytes_for_int(
             random.randint(0, self.N)
         )
         digest = matasano.hash.SHA256(salt + self._password)
@@ -359,9 +408,9 @@ class SRPServer:
 
         u = int.from_bytes(
             matasano.hash.SHA256(
-                matasano.util.bytes_for_big_int(A)
+                matasano.util.bytes_for_int(A)
                 +
-                matasano.util.bytes_for_big_int(B)
+                matasano.util.bytes_for_int(B)
             ),
             byteorder='little'
         )
@@ -373,7 +422,7 @@ class SRPServer:
         )
 
         self._K = matasano.hash.SHA256(
-            matasano.util.bytes_for_big_int(s)
+            matasano.util.bytes_for_int(s)
         )
         return self._salt, B
 
@@ -433,9 +482,9 @@ class SRPClient:
 
         u = int.from_bytes(
             matasano.hash.SHA256(
-                matasano.util.bytes_for_big_int(A)
+                matasano.util.bytes_for_int(A)
                 +
-                matasano.util.bytes_for_big_int(B)
+                matasano.util.bytes_for_int(B)
             ),
             byteorder='little'
         )
@@ -453,7 +502,7 @@ class SRPClient:
         )
 
         self.key = matasano.hash.SHA256(
-            matasano.util.bytes_for_big_int(s)
+            matasano.util.bytes_for_int(s)
         )
 
         return self.server.srp_protocol_two(
@@ -505,7 +554,7 @@ class SRPClientFakeA(SRPClient):
 
             # Server's session key will always be 0
             self.key = matasano.hash.SHA256(
-                matasano.util.bytes_for_big_int(0)
+                matasano.util.bytes_for_int(0)
             )
 
             return self.server.srp_protocol_two(
@@ -540,7 +589,7 @@ class SimplifiedSRPServer(SRPServer):
         )
 
         self._K = matasano.hash.SHA256(
-            matasano.util.bytes_for_big_int(s)
+            matasano.util.bytes_for_int(s)
         )
 
         return self._salt, B, u
@@ -590,7 +639,7 @@ class SimplifiedSRPClient(SRPClient):
         )
 
         self.key = matasano.hash.SHA256(
-            matasano.util.bytes_for_big_int(s)
+            matasano.util.bytes_for_int(s)
         )
 
         return self.server.srp_protocol_two(

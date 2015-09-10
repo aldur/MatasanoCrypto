@@ -6,7 +6,6 @@
 import math
 
 import matasano.util
-import matasano.oracle
 import matasano.prng
 
 from Crypto.Cipher import AES
@@ -87,12 +86,12 @@ def pad_with_buffer(b: bytes, pad: bytes) -> bytes:
     assert pad
 
     b += pad
-    b = pkcs(b, 16)
+    b = pkcs_7(b, 16)
 
     return b
 
 
-def pkcs(b: bytes, size: int) -> bytes:
+def pkcs_7(b: bytes, size: int) -> bytes:
     """
     PKCS#7 padding.
     Given the block size, pad the input buffer,
@@ -118,7 +117,7 @@ def pkcs(b: bytes, size: int) -> bytes:
     return bytes(b)
 
 
-def un_pkcs(b: bytes, size: int) -> bytes:
+def un_pkcs_7(b: bytes, size: int) -> bytes:
     """
     PKCS#7 un_padding.
     Remove padding from the bytes.
@@ -139,6 +138,32 @@ def un_pkcs(b: bytes, size: int) -> bytes:
             raise BadPaddingException
 
     return bytes(b[:-padding])
+
+
+def pkcs_1_5(b: bytes, size: int) -> bytes:
+    """
+    PKCS#1.5 padding.
+    Create a block of the form:
+        00 || BT || PS || 00 || b
+    Where BT is usually 0x01 and
+    PS are 0xff bytes in a number
+    such that the whole block is filled.
+
+    The length of b must be less than the size of
+    the block minus 3 (00 x 2 and BT).
+
+    :param b: A buffer of bytes.
+    :param size: The block size.
+    :return: The padded buffer.
+    """
+    assert len(b) < size
+
+    padded = bytearray((0x00, 0x01))
+    padded += bytearray(0xff for _ in range(size - 3 - len(b)))
+    padded += bytearray((0x00,))
+    padded += b
+
+    return bytes(padded)
 
 
 def any_equal_block(b: bytes) -> bool:
@@ -187,7 +212,7 @@ def aes_cbc(
     exit_buffer = b''
     if not iv:
         iv = b'\x00' * 16 if not random_iv \
-            else matasano.oracle.random_aes_key()
+            else matasano.util.random_aes_key()
 
     previous = iv
     for i in range(0, len(b), 16):

@@ -6,7 +6,9 @@ Test the public key related crypto.
 """
 
 import unittest
+
 import matasano.public
+import matasano.hash
 
 __author__ = 'aldur'
 
@@ -100,6 +102,17 @@ class PublicTestCase(unittest.TestCase):
         self.assertEqual(
             matasano.public.rsa_decrypt(private, c),
             message
+        )
+
+    def test_rsa_signature(self):
+        private, public = matasano.public.rsa_keys()
+        message = matasano.hash.SHA256(b"Textbook" * 1000)
+
+        s = matasano.public.rsa_sign(private, message)
+        self.assertTrue(
+            matasano.public.rsa_verify(
+                public, message, s
+            )
         )
 
 

@@ -47,5 +47,14 @@ class MathTestCase(unittest.TestCase):
             4
         )
 
+    def test_int_cube_root(self):
+        f = matasano.math.integer_cube_root
+        self.assertEqual(
+            f(125), 5
+        )
+        self.assertEqual(
+            f(126), 5
+        )
+
 if __name__ == '__main__':
     unittest.main()

@@ -52,6 +52,30 @@ def modinv(a: int, m: int) -> int:
     return x % m
 
 
+def integer_kth_root(n: int, k: int) -> int:
+    """
+    Find the integer k-th root of n.
+    Credits:
+    http://stackoverflow.com/questions/15978781/how-to-find-integer-nth-roots
+    Solution based on Newton's method.
+
+    :param k: The root exponent.
+    :param n: The number to be rooted.
+    :return: The greatest integer less than or equal to the k-th root of n.
+    """
+    u, s = n, n + 1
+    while u < s:
+        s = u
+        t = (k - 1) * s + n // pow(s, k - 1)
+        u = t // k
+    return s
+
+integer_cube_root = functools.partial(
+    integer_kth_root,
+    k=3
+)
+
+
 random_big_prime = functools.partial(
     Crypto.Util.number.getStrongPrime,
     N=1024  # bits

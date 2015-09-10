@@ -107,7 +107,7 @@ def key_value_parsing(s: str) -> dict:
         kv.split("=")[0]: kv.split("=")[1]
         for kv in s.split("&")
         if kv.count("=")
-        }
+    }
 
 
 def dictionary_to_kv(d: dict) -> str:
@@ -216,11 +216,12 @@ def left_rotate(n: int, b: int) -> int:
     return ((n << b) | ((n & 0xffffffff) >> (32 - b))) & 0xffffffff
 
 
-def bytes_for_big_int(n: int) -> bytes:
+def bytes_for_int(n: int, byteorder='little') -> bytes:
     """
     Represent a big int in little endian bytes.
 
     :param n: The int to be represented in bytes.
+    :param byteorder: The byteorder of the representation.
     :return: A byte representation of the int.
     """
     assert n >= 0
@@ -228,11 +229,11 @@ def bytes_for_big_int(n: int) -> bytes:
     if n == 0:
         return bytes(1)
     elif n == 1:
-        return n.to_bytes(1, 'little')
+        return n.to_bytes(1, byteorder)
     else:
         return n.to_bytes(
             math.ceil(math.log(n, 255)),
-            'little'
+            byteorder
         )
 
 
@@ -259,3 +260,40 @@ def get_random_password() -> bytes:
     return random.choice(
         list(get_password_wordlist())
     )
+
+
+def random_bytes_random_range(low: int, high: int) -> bytes:
+    """
+    Generate low to high random bytes.
+
+    :param low: The minimum number of bytes to generate.
+    :param high: The maximum (inclusive) number of bytes to generate.
+    :return: A random range of random bytes s.t. low <= len(output) <= max.
+    """
+    return bytes(
+        random.randint(0, 255)
+        for _
+        in range(0, random.randint(low, high))
+    )
+
+
+def random_bytes_range(length: int) -> bytes:
+    """
+    Generate a sequence of specified length of random bytes.
+
+    :param length: The len of the range.
+    :return: A new range of random bytes.
+    """
+    return bytes(
+        random.randint(0, 255)
+        for _
+        in range(0, length)
+    )
+
+
+def random_aes_key() -> bytes:
+    """Generate a random AES key (16 bytes)
+
+    :return: 16 bytes.
+    """
+    return random_bytes_range(16)

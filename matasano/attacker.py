@@ -113,7 +113,7 @@ class AttackerProfileForUser(Attacker):
         )
         email = b"a" * (16 - fixed - len(b"@")) + b"@"
         assert len(email) + fixed == 16
-        email += matasano.blocks.pkcs(b"admin", 16)
+        email += matasano.blocks.pkcs_7(b"admin", 16)
         assert len(email) + fixed == 32
         email += b".com"
         self._role = self.oracle.experiment(email)[16:32]
@@ -245,7 +245,7 @@ class AttackerByteAtATimeEcb(Attacker):
             self.unhidden_string += byte
 
         self.unhidden_string = self.unhidden_string.rstrip(b"\x00")
-        self.unhidden_string = matasano.blocks.un_pkcs(
+        self.unhidden_string = matasano.blocks.un_pkcs_7(
             self.unhidden_string, self.block_size
         )
         return self.oracle.guess(self.unhidden_string)
@@ -518,7 +518,7 @@ class AttackerHarderByteAtATimeEcb(AttackerByteAtATimeEcb):
             self.unhidden_string += byte
 
         self.unhidden_string = self.unhidden_string.rstrip(b"\x00")
-        self.unhidden_string = matasano.blocks.un_pkcs(
+        self.unhidden_string = matasano.blocks.un_pkcs_7(
             self.unhidden_string,
             self.block_size
         )
@@ -1353,7 +1353,7 @@ class EavesdropperSimplifiedSRPServer(
         self.b = 1
         self.B = self.g
         self.u = 1
-        self._salt = matasano.util.bytes_for_big_int(256)
+        self._salt = matasano.util.bytes_for_int(256)
 
         self.A = -1
         self.client_signature = None
@@ -1394,7 +1394,7 @@ class EavesdropperSimplifiedSRPServer(
             )
 
             self._K = matasano.hash.SHA256(
-                matasano.util.bytes_for_big_int(s)
+                matasano.util.bytes_for_int(s)
             )
 
             if matasano.mac.hmac_sha256(
@@ -1457,7 +1457,7 @@ class AttackerRSABroadcast:
         ])
         result %= n
 
-        return matasano.util.bytes_for_big_int(
+        return matasano.util.bytes_for_int(
             int(math.ceil(pow(result, 1 / 3.0)))
         )
 
@@ -1495,7 +1495,55 @@ class AttackerUnpaddedRSARecovery(Attacker):
         plaintext = (plaintext * inv_s) % pub.n
 
         return self.oracle.guess(
-            matasano.util.bytes_for_big_int(
+            matasano.util.bytes_for_int(
                 plaintext
             )
         )
+
+
+class AttackerRSAPaddedSignatureVerifier(Attacker):
+
+    """
+    Forge a signature by creating a perfect cube,
+    that respects the PKCS1.5 padding rules.
+
+    :param oracle: The oracle's to be attacked.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleRSAPaddedSignatureVerifier):
+        super(AttackerRSAPaddedSignatureVerifier, self).__init__(oracle)
+
+    def attack(self) -> bool:
+        """
+        Find a perfect cube that, when represented in binary form,
+        has the prefix matching the expected padding.
+        A working signature can be forged by using such cube.
+        """
+        message, pub = self.oracle.challenge()
+
+        assert pub.e == 3, \
+            "Can't attack if Oracle public key is not 3."
+
+        pad_f = matasano.oracle.OracleRSAPaddedSignatureVerifier.pad_function
+        hash_f = matasano.oracle.OracleRSAPaddedSignatureVerifier.hash_function
+        block_size = matasano.oracle.OracleRSAPaddedSignatureVerifier.block_size
+        byteorder = 'big'  # Because we're messing with the suffix
+
+        padded_message = pad_f(
+            hash_f(message)
+        )
+
+        padded_message += b"\x00" * block_size * 2
+        n = int.from_bytes(padded_message, byteorder=byteorder)
+        forged_signature = matasano.math.integer_cube_root(n) + 1
+
+        forged_message = pow(forged_signature, 3)
+        assert forged_message < pub.n
+
+        forged_message = forged_message.to_bytes(
+            len(padded_message),
+            byteorder=byteorder
+        )
+
+        assert padded_message[:block_size] == forged_message[:block_size]
+        return self.oracle.guess(forged_signature)

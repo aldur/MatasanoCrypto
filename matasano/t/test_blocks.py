@@ -9,7 +9,7 @@ import unittest
 import random
 
 import matasano.blocks
-import matasano.oracle
+import matasano.util
 
 __author__ = 'aldur'
 
@@ -47,40 +47,50 @@ class BlocksTestCase(unittest.TestCase):
             l.decode("ascii")
         )
 
-    def test_pkcs(self):
+    def test_pkcs_7(self):
         b = "YELLOW SUBMARINE".encode("ascii")
 
         size = 20
-        padded = matasano.blocks.pkcs(b, size)
+        padded = matasano.blocks.pkcs_7(b, size)
         self.assertEqual(len(padded), size)
         self.assertEqual(padded, b + b"\x04" * 4)
 
         size = 16
-        padded = matasano.blocks.pkcs(b, size)
+        padded = matasano.blocks.pkcs_7(b, size)
         self.assertEqual(len(padded), size * 2)
         self.assertEqual(padded, b + (b"\x10" * size))
+
+    def test_pkcs_1_5(self):
+        b = "YELLOW SUBMARINE".encode("ascii")
+
+        size = 20
+        padded = matasano.blocks.pkcs_1_5(b, size)
+        self.assertEqual(len(padded), size)
+        self.assertEqual(
+            padded, b"\x00\x01\xff\x00" + b
+        )
 
     def test_un_pkcs(self):
         b = "YELLOW SUBMARINE".encode("ascii")
 
         size = 20
-        padded = matasano.blocks.pkcs(b, size)
-        un_padded = matasano.blocks.un_pkcs(padded, size)
+        padded = matasano.blocks.pkcs_7(b, size)
+        un_padded = matasano.blocks.un_pkcs_7(padded, size)
         self.assertEqual(b, un_padded)
 
         size = 16
-        padded = matasano.blocks.pkcs(b, size)
-        un_padded = matasano.blocks.un_pkcs(padded, size)
+        padded = matasano.blocks.pkcs_7(b, size)
+        un_padded = matasano.blocks.un_pkcs_7(padded, size)
         self.assertEqual(b, un_padded)
 
         padded = b"ICE ICE BABY\x04\x04\x04\x04"
-        un_padded = matasano.blocks.un_pkcs(padded, size)
+        un_padded = matasano.blocks.un_pkcs_7(padded, size)
         self.assertEqual(b"ICE ICE BABY", un_padded)
 
         padded = b"ICE ICE BABY\x05\x05\x05\x05"
         self.assertRaises(
             matasano.blocks.BadPaddingException,
-            matasano.blocks.un_pkcs,
+            matasano.blocks.un_pkcs_7,
             padded,
             size
         )
@@ -88,7 +98,7 @@ class BlocksTestCase(unittest.TestCase):
         padded = b"ICE ICE BABY\x01\x02\x03\x04"
         self.assertRaises(
             matasano.blocks.BadPaddingException,
-            matasano.blocks.un_pkcs,
+            matasano.blocks.un_pkcs_7,
             padded,
             size
         )
@@ -107,7 +117,7 @@ class BlocksTestCase(unittest.TestCase):
         f = matasano.blocks.aes_cbc
         key = "YELLOW SUBMARINE".encode("ascii")
         b = "00foobarfoobar00".encode("ascii")
-        iv = matasano.oracle.random_aes_key()
+        iv = matasano.util.random_aes_key()
 
         self.assertEqual(
             f(key, f(key, b)[0], decrypt=True)[0],
@@ -131,7 +141,7 @@ class BlocksTestCase(unittest.TestCase):
 
     def test_mt19937_stream(self):
         f = matasano.blocks.mt19937_stream
-        key = random.randint(0, 2 ** 32 -1)
+        key = random.randint(0, 2 ** 32 - 1)
         b = "00foobarfoobar00".encode("ascii")
 
         cipher = f(key, b)

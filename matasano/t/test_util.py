@@ -7,6 +7,7 @@ Test the utils.
 
 import matasano.util
 import unittest
+import random
 
 __author__ = 'aldur'
 
@@ -101,6 +102,39 @@ class UtilTestCase(unittest.TestCase):
             truth,
             matasano.util.key_value_parsing(kv)
         )
+
+    def test_bytes_for_int(self):
+        f = matasano.util.bytes_for_int
+
+        self.assertEqual(
+            f(0), b"\x00"
+        )
+        self.assertEqual(
+            f(1), b"\x01"
+        )
+        self.assertEqual(
+            f(255), b"\xff"
+        )
+        self.assertEqual(
+            f(256, byteorder='little'),
+            (256).to_bytes(2, byteorder='little')
+        )
+
+        for n in (256 ** 68, 256 ** 68 + 27):
+            b = f(n, byteorder='little')
+            self.assertEqual(
+                len(b), 69
+            )
+            self.assertEqual(
+                b, n.to_bytes(69, byteorder='little')
+            )
+            b = f(n, byteorder='big')
+            self.assertEqual(
+                len(b), 69
+            )
+            self.assertEqual(
+                b, n.to_bytes(69, byteorder='big')
+            )
 
 
 if __name__ == '__main__':

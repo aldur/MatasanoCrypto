@@ -164,7 +164,7 @@ def nine():
     """http://cryptopals.com/sets/2/challenges/9/"""
     b = "YELLOW SUBMARINE".encode("ascii")
     size = 20
-    print("PKCS padding: {}".format(matasano.blocks.pkcs(b, size)))
+    print("PKCS padding: {}".format(matasano.blocks.pkcs_7(b, size)))
 
 
 def ten():
@@ -261,7 +261,7 @@ def fifteen():
 
     for padded in pads:
         try:
-            matasano.blocks.un_pkcs(padded, 16)
+            matasano.blocks.un_pkcs_7(padded, 16)
             print("Padded buffer {} is valid.".format(padded))
         except matasano.blocks.BadPaddingException:
             print("Padded buffer {} is invalid.".format(padded))
@@ -643,6 +643,17 @@ def fortyone():
     """http://cryptopals.com/sets/6/challenges/41/"""
     oracle = matasano.oracle.OracleUnpaddedRSARecovery()
     attacker = matasano.attacker.AttackerUnpaddedRSARecovery(oracle)
+
+    attack = attacker.attack()
+    print("The attack results was: {}.".format(
+        "success" if attack else "failure"
+    ))
+
+
+def fortytwo():
+    """http://cryptopals.com/sets/6/challenges/42/"""
+    oracle = matasano.oracle.OracleRSAPaddedSignatureVerifier(b"hi mom")
+    attacker = matasano.attacker.AttackerRSAPaddedSignatureVerifier(oracle)
 
     attack = attacker.attack()
     print("The attack results was: {}.".format(
