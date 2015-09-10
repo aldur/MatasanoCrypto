@@ -61,7 +61,7 @@ RSA_Priv = collections.namedtuple(
 The key pair.
 """
 RSA_Keys = collections.namedtuple(
-    'RSA_Keys', ['pub', 'priv']
+    'RSA_Keys', ['priv', 'pub']
 )
 
 
@@ -87,7 +87,7 @@ def rsa_keys(p: int = None, q: int = None, e: int = 3) -> RSA_Keys:
     phi_n = (p - 1) * (q - 1)
     d = matasano.math.modinv(e, phi_n)
 
-    return RSA_Keys(RSA_Pub(d, n), RSA_Priv(e, n))
+    return RSA_Keys(RSA_Priv(d, n), RSA_Pub(e, n))
 
 
 def rsa_encrypt(key: RSA_Pub, message: bytes) -> int:
