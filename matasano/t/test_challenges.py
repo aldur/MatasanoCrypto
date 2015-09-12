@@ -22,7 +22,7 @@ class ChallengeTestCase(unittest.TestCase):
 
         :param challenge_f: The challenge to be tested.
         """
-        result = challenge_f.__wrapped__()
+        result = challenge_f()
 
         if result is not None:
             self.assertTrue(result)

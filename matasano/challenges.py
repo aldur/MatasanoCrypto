@@ -75,6 +75,8 @@ def challenge(challenge_f):
         else:
             print("Challenge did not require explicit completion, you're good to go.")
 
+        return result
+
     return decorated_challenge
 
 
