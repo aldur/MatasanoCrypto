@@ -10,7 +10,9 @@ import matasano.oracle
 import matasano.attacker
 import matasano.prng
 import matasano.mac
+import matasano.math
 import matasano.public
+import matasano.hash
 
 import base64
 import binascii
@@ -761,6 +763,31 @@ def fortyfour():
     result = attacker.attack()
     print("Discovered private key: {}.".format(attacker.private_key_x))
     return result
+
+
+@challenge
+def fortyfive():
+    """http://cryptopals.com/sets/6/challenges/45/"""
+    private, public = matasano.public.dsa_keys(
+        g=matasano.public.dsa_p + 1
+    )
+
+    results = []
+    for b in [b"Hello, world", b"Goodbye, world"]:
+        z = matasano.public.DSA_hash_to_int(
+            matasano.hash.SHA256(b)
+        )
+
+        r = pow(public.y, z, public.p) % public.q
+        s = (r * matasano.math.modinv(z, public.q)) % public.q
+        signature = matasano.public.DSA_Signature(r, s)
+        results.append(matasano.public.dsa_verify(
+            b,
+            signature,
+            public
+        ))
+
+    return all(results)
 
 
 def main():
