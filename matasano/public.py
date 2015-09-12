@@ -7,6 +7,7 @@ Public cryptography tools.
 
 import random
 import collections
+import functools
 
 import matasano.hash
 import matasano.blocks
@@ -27,6 +28,31 @@ dh_nist_p = int(
     base=16
 )
 dh_nist_g = 2
+
+dsa_p = int(
+    """800000000000000089e1855218a0e7dac38136ffafa72eda7859f2171"""
+    """e25e65eac698c1702578b07dc2a1076da241c76c62d374d8389ea5aeffd3"""
+    """226a0530cc565f3bf6b50929139ebeac04f48c3c84afb796d61e5a4f9a8f"""
+    """da812ab59494232c7d2b4deb50aa18ee9e132bfa85ac4374d7f9091abc3d"""
+    """015efc871a584471bb1""",
+    base=16
+)
+
+dsa_q = int(
+    """f4f47f05794b256174bba6e9b396a7707e563c5b""",
+    base=16
+)
+
+dsa_g = int(
+    """5958c9d3898b224b12672c0b98e06c60df923cb8bc999d119"""
+    """458fef538b8fa4046c8db53039db620c094c9fa077ef389b5"""
+    """322a559946a71903f990f1f7e0e025e2d7f7cf494aff1a047"""
+    """0f5b64c36b625a097f1651fe775323556fe00b3608c887892"""
+    """878480e99041be601a62166ca6894bdd41a7054ec89f756ba"""
+    """9fc95302291""",
+    base=16
+
+)
 
 """
 DH parameters.
@@ -181,6 +207,126 @@ def rsa_verify(
         pow(signature, e, n)
     )
     return signed_message == message_digest_block
+
+
+"""
+Store DSA public key.
+"""
+DSA_Pub = collections.namedtuple(
+    'DSA_Pub', ['y', 'p', 'q', 'g']
+)
+
+"""
+Store DSA private key.
+"""
+DSA_Priv = collections.namedtuple(
+    'DSA_Priv', ['x', 'p', 'q', 'g']
+)
+
+"""
+The key pair.
+"""
+DSA_Keys = collections.namedtuple(
+    'DSA_Keys', ['priv', 'pub']
+)
+
+
+def dsa_keys(
+        g: int = dsa_g,
+        p: int = dsa_p,
+        q: int = dsa_q,
+) -> DSA_Keys:
+    """
+    Generate a new pair of DSA user keys.
+
+    :param g: DSA parameter g.
+    :param p: DSA parameter p.
+    :param q: DSA parameter q.
+    """
+    x = random.randint(1, q - 1)
+    y = pow(g, x, p)
+
+    return DSA_Keys(
+        DSA_Priv(x, p, q, g),
+        DSA_Pub(y, p, q, g),
+    )
+
+
+"""
+DSA digital signature.
+"""
+DSA_Signature = collections.namedtuple(
+    'DSA_Signature', ['r', 's']
+)
+
+DSA_hash_to_int = functools.partial(
+    int.from_bytes,
+    byteorder='big'
+)
+
+
+def dsa_sign(
+        message: bytes,
+        private: DSA_Priv,
+        hash_f=matasano.hash.SHA256,
+        hash_to_int=DSA_hash_to_int
+) -> DSA_Signature:
+    """
+    The DSA signing algorithm.
+
+    :param message: The message to be signed.
+    :param private: The DSA private key.
+    :param hash_f: The hash function used.
+    :param hash_to_int: The function to convert a hash to an int.
+    :return: A new digital signature for the message.
+    """
+    x, p, q, g = private
+
+    r = 0
+    s = 0
+
+    digest = hash_to_int(hash_f(message))
+
+    while s == 0:
+        k = random.randint(1, q - 1)
+        k_inv = matasano.math.modinv(k, q)
+
+        r = pow(g, k, p) % q
+        if r != 0:
+            s = k_inv * (digest + x * r) % q
+
+    return DSA_Signature(r, s)
+
+
+def dsa_verify(
+        message: bytes,
+        signature: DSA_Signature,
+        public: DSA_Pub,
+        hash_f=matasano.hash.SHA256,
+        hash_to_int=DSA_hash_to_int
+) -> bool:
+    """
+    Verify the digital signature for the given message.
+
+    :param message: The signed message.
+    :param signature: The signature to be verified.
+    :param public: The public key of the signer.
+    :param hash_f: The hash function used.
+    :param hash_to_int: The function to convert a hash to an int.
+    :return: Whether the digital signature is valid.
+    """
+    r, s = signature
+    y, p, q, g = public
+
+    if not (0 < r < s or 0 < s < q):
+        return False
+
+    w = matasano.math.modinv(s, q)
+    u_one = (hash_to_int(hash_f(message)) * w) % q
+    u_two = (r * w) % q
+    v = ((pow(g, u_one, p) * pow(y, u_two, p)) % p) % q
+
+    return v == r
 
 
 class DHEntity:

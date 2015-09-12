@@ -115,6 +115,19 @@ class PublicTestCase(unittest.TestCase):
             )
         )
 
+    def test_dsa_signature(self):
+        private, public = matasano.public.dsa_keys()
+        message = b"Textbook" * 1000
+
+        signature = matasano.public.dsa_sign(
+            message,
+            private
+        )
+        self.assertTrue(
+            matasano.public.dsa_verify(
+                message, signature, public
+            )
+        )
 
 if __name__ == '__main__':
     unittest.main()
