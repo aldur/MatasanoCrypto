@@ -739,8 +739,24 @@ def fortytwo():
 @challenge
 def fortythree():
     """http://cryptopals.com/sets/6/challenges/43/"""
-    oracle = matasano.oracle.OracleDSAKeyFromNonce()
+    oracle = matasano.oracle.OracleDSAKeyFromNonce(
+        matasano.oracle.OracleDSAKeyFromNonce.public_key
+    )
     attacker = matasano.attacker.AttackerDSAKeyFromNonce(oracle)
+
+    result = attacker.attack()
+    print("Discovered private key: {}.".format(attacker.private_key_x))
+    return result
+
+
+@challenge
+def fortyfour():
+    """http://cryptopals.com/sets/6/challenges/44/"""
+    oracle = matasano.oracle.OracleDSAKeyFromRepeatedNonce(
+        matasano.oracle.OracleDSAKeyFromRepeatedNonce.public_key,
+        pkg_resources.resource_filename(__name__, "input/44.txt")
+    )
+    attacker = matasano.attacker.AttackerDSAKeyFromRepeatedNonce(oracle)
 
     result = attacker.attack()
     print("Discovered private key: {}.".format(attacker.private_key_x))

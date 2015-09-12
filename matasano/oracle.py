@@ -19,7 +19,6 @@ import http.client
 import urllib.parse
 import threading
 import socketserver
-import Crypto.Util.number
 
 import matasano.blocks
 import matasano.util
@@ -1280,7 +1279,46 @@ class OracleRSAPaddedSignatureVerifier(Oracle):
         return super().experiment(args)
 
 
-class OracleDSAKeyFromNonce(Oracle):
+class OracleDSA(Oracle):
+
+    """
+    A oracle holding a DSA public key.
+    The attacker's guess is to find the private key.
+    """
+
+    def __init__(self, public: matasano.public.DSA_Pub):
+        super(OracleDSA, self).__init__()
+        self.public_key = public
+
+    def guess(self, guess: int) -> bool:
+        """
+        Check whether given private key guess is valid.
+
+        :param guess: The attacker's guess on the private key.
+        :return: True if the private key generated the public key and the signature.
+        """
+        y, p, q, g = self.public_key
+
+        if not 0 < guess < q:
+            return False
+
+        return pow(g, guess, p) == y
+
+    def challenge(self):
+        """
+        This oracle doesn't provide a challenge (everything is fixed and public).
+        """
+        return None
+
+    def experiment(self, *args: bytes) -> bytes:
+        """
+        This oracle doesn't provide experiments.
+        :param args: An iterable of bytes.
+        """
+        return super().experiment(args)
+
+
+class OracleDSAKeyFromNonce(OracleDSA):
 
     """
     A oracle holding a known signature for a known message.
@@ -1322,11 +1360,92 @@ class OracleDSAKeyFromNonce(Oracle):
 
     k_range = range(1, 2 ** 16 - 1)
 
+    def guess(self, guess: int) -> bool:
+        """
+        Check whether given private key guess is valid.
+
+        :param guess: The attacker's guess on the private key.
+        :return: True if the private key generated the public key and the signature.
+        """
+        return super().guess(guess)
+
     def challenge(self):
         """
         This oracle doesn't provide a challenge (everything is fixed and public).
         """
         return None
+
+    def experiment(self, *args: bytes) -> bytes:
+        """
+        This oracle doesn't provide experiments.
+        :param args: An iterable of bytes.
+        """
+        return super().experiment(args)
+
+
+class OracleDSAKeyFromRepeatedNonce(OracleDSA):
+
+    """
+    A oracle holding a known set of messages and signatures,
+    and a private key.
+    The attacker's goal is to find the DSA private key,
+    by knowing that some messages have been signed by using
+    the same k nonce.
+    """
+
+    public_key = matasano.public.DSA_Pub(
+        int(
+            """2d026f4bf30195ede3a088da85e398ef869611d0f68f07"""
+            """13d51c9c1a3a26c95105d915e2d8cdf26d056b86b8a7b8"""
+            """5519b1c23cc3ecdc6062650462e3063bd179c2a6581519"""
+            """f674a61f1d89a1fff27171ebc1b93d4dc57bceb7ae2430"""
+            """f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3"""
+            """2971c3de5084cce04a2e147821""",
+            base=16
+        ),
+        matasano.public.dsa_p,
+        matasano.public.dsa_q,
+        matasano.public.dsa_g,
+    )
+
+    SignatureForMessage = collections.namedtuple(
+        "SignatureForMessage",
+        ["msg", "s", "r", "h"]
+    )
+
+    def _parse_signatures(self, signatures: str):
+        signature_for_messages = list()
+
+        with open(signatures) as signatures_s:
+            lines = signatures_s.readlines()
+            for i in range(0, len(lines), 4):
+                four_lines = lines[i:i + 4]
+                msg, s, r, h = four_lines
+
+                msg = msg[len("msg: "):].rstrip("\n")
+                s = int(s[len("s: "):].rstrip("\n"))
+                r = int(r[len("r: "):].rstrip("\n"))
+                h = int(h[len("m: "):].rstrip("\n"), 16)
+
+                signature_for_messages.append(
+                    type(self).SignatureForMessage(msg, s, r, h)
+                )
+
+        return signature_for_messages
+
+    def __init__(
+            self,
+            public: matasano.public.DSA_Pub,
+            signatures: str
+    ):
+        super(OracleDSAKeyFromRepeatedNonce, self).__init__(public)
+        self.signatures_for_messages = self._parse_signatures(signatures)
+
+    def challenge(self) -> list:
+        """
+        Return to the caller the list of messages and related signatures.
+        """
+        return self.signatures_for_messages
 
     def experiment(self, *args: bytes) -> bytes:
         """
@@ -1342,5 +1461,6 @@ class OracleDSAKeyFromNonce(Oracle):
         :param guess: The attacker's guess on the private key.
         :return: True if the private key generated the public key and the signature.
         """
-        y, p, q, g = type(self).public_key
-        return pow(g, guess, p) == y
+        return super(OracleDSAKeyFromRepeatedNonce, self).guess(guess)
+
+
