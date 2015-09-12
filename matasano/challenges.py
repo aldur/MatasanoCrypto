@@ -736,6 +736,17 @@ def fortytwo():
     return result
 
 
+@challenge
+def fortythree():
+    """http://cryptopals.com/sets/6/challenges/43/"""
+    oracle = matasano.oracle.OracleDSAKeyFromNonce()
+    attacker = matasano.attacker.AttackerDSAKeyFromNonce(oracle)
+
+    result = attacker.attack()
+    print("Discovered private key: {}.".format(attacker.private_key_x))
+    return result
+
+
 def main():
     """
     Read the argument from the command line,

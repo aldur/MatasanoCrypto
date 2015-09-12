@@ -1548,3 +1548,40 @@ class AttackerRSAPaddedSignatureVerifier(Attacker):
 
         assert padded_message[:block_size] == forged_message[:block_size]
         return self.oracle.guess(forged_signature)
+
+
+class AttackerDSAKeyFromNonce(Attacker):
+
+    """
+    Recover the DSA private key by brute-forcing the nonce value.
+    :param oracle: The oracle to be attacked.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleDSAKeyFromNonce):
+        super(AttackerDSAKeyFromNonce, self).__init__(oracle)
+        self.private_key_x = -1
+
+    def attack(self) -> bool:
+        """
+        Brute-force the nonce value and discover the Oracle's private key.
+        """
+        oracle_type = type(self.oracle)
+
+        y, p, q, g = oracle_type.public_key
+        r, s = oracle_type.signature
+
+        r_inv = matasano.math.modinv(r, q)
+        digest = oracle_type.hash_to_int(
+            oracle_type.hash_function(oracle_type.message)
+        )
+
+        for k in oracle_type.k_range:
+            x = (((s * k) - digest) * r_inv) % q
+            if pow(g, x, p) == y:
+                break
+        else:
+            assert False, \
+                "Something went wrong while brute-forcing the nonce."
+
+        self.private_key_x = x
+        return self.oracle.guess(self.private_key_x)

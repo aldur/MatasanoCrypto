@@ -1278,3 +1278,69 @@ class OracleRSAPaddedSignatureVerifier(Oracle):
         :param args: An iterable of bytes.
         """
         return super().experiment(args)
+
+
+class OracleDSAKeyFromNonce(Oracle):
+
+    """
+    A oracle holding a known signature for a known message.
+    The attacker's goal is to find the DSA private key,
+    by brute-forcing the nonce value 0 <= k <= 2 ** 16 - 1.
+    """
+
+    hash_function = matasano.hash.SHA1
+    message = (
+        b"""For those that envy a MC it can be hazardous to your health\n"""
+        b"""So be friendly, a matter of life and death, just like a etch-a-sketch\n"""
+    )
+    assert binascii.hexlify(
+        hash_function(message)
+    ) == b"d2d0714f014a9784047eaeccf956520045c45265"
+
+    public_key = matasano.public.DSA_Pub(
+        int(
+            """84ad4719d044495496a3201c8ff484feb45b962e7302e56a392aee4"""
+            """abab3e4bdebf2955b4736012f21a08084056b19bcd7fee56048e004"""
+            """e44984e2f411788efdc837a0d2e5abb7b555039fd243ac01f0fb2ed"""
+            """1dec568280ce678e931868d23eb095fde9d3779191b8c0299d6e07b"""
+            """bb283e6633451e535c45513b2d33c99ea17""",
+            base=16
+        ),
+        matasano.public.dsa_p,
+        matasano.public.dsa_q,
+        matasano.public.dsa_g,
+    )
+
+    signature = matasano.public.DSA_Signature(
+        548099063082341131477253921760299949438196259240,
+        857042759984254168557880549501802188789837994940
+    )
+
+    hash_to_int = matasano.public.DSA_hash_to_int
+    assert hex(hash_to_int(hash_function(message))) == \
+        "0xd2d0714f014a9784047eaeccf956520045c45265"
+
+    k_range = range(1, 2 ** 16 - 1)
+
+    def challenge(self):
+        """
+        This oracle doesn't provide a challenge (everything is fixed and public).
+        """
+        return None
+
+    def experiment(self, *args: bytes) -> bytes:
+        """
+        This oracle doesn't provide experiments.
+        :param args: An iterable of bytes.
+        """
+        return super().experiment(args)
+
+    def guess(self, guess: int) -> bool:
+        """
+        Check whether given private key guess is valid.
+
+        :param guess: The attacker's guess on the private key.
+        :return: True if the private key generated the public key and the signature.
+        """
+        y, p, q, g = type(self).public_key
+        return pow(g, guess, p) == y
