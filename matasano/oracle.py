@@ -1464,3 +1464,47 @@ class OracleDSAKeyFromRepeatedNonce(OracleDSA):
         return super(OracleDSAKeyFromRepeatedNonce, self).guess(guess)
 
 
+class OracleRSAParity(Oracle):
+
+    """
+    This oracle is holding a hidden message.
+    It provides a function to check the parity
+    of any given plaintext from any given ciphertext.
+    The attacker's guess is to discover the message.
+
+    :param message: The hidden message.
+    """
+
+    def __init__(self, message: bytes):
+        super().__init__()
+
+        self._message = message
+        self._keys = matasano.public.rsa_keys()
+
+    def challenge(self) -> tuple:
+        """
+        Return an encryption of the message to the caller.
+        :return: An encryption of the hidden message and the public key.
+        """
+        return matasano.public.rsa_encrypt(
+            self._keys.pub,
+            self._message
+        ), self._keys.pub
+
+    def experiment(self, cipher: int) -> bool:
+        """
+        Return true if the plaintext form the cipher is even.
+        :param cipher: The cipher to be tested.
+        :return: The parity of the derived plaintext.
+        """
+        d, n = self._keys.priv
+        return pow(cipher, self._keys.priv.d, n) % 2 == 0
+
+    def guess(self, guess: bytes) -> bool:
+        """
+        Evaluate the attacker's guess.
+
+        :param guess: The attacker's guess on the hidden message.
+        :return: True if the guess is correct.
+        """
+        return self._message == guess

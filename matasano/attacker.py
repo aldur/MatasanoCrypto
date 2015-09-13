@@ -1691,3 +1691,58 @@ class AttackerDSAKeyFromRepeatedNonce(AttackerDSA):
 
         self.private_key_x = x
         return self.oracle.guess(self.private_key_x)
+
+
+class AttackerRSAParity(Attacker):
+
+    """
+    Exploit the parity function in order to apply
+    a binary search on the message space.
+    :param oracle: The oracle to be attacked.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleRSAParity):
+        super().__init__(oracle)
+        self.message = None
+
+    def attack(self) -> bool:
+        """
+        Attack the oracle by repeatedly checking the parity
+        of a tampered ciphertext.
+        """
+        cipher, public = self.oracle.challenge()
+        e, n = public
+
+        lower = 0
+        upper = 1
+        denominator = 1
+
+        multiplier = pow(2, e, n)
+
+        for _ in range(n.bit_length()):
+            half = upper - lower
+
+            assert half >= 0, \
+                "Got bad half value {}.".format(half)
+
+            lower *= 2
+            upper *= 2
+            denominator *= 2
+
+            cipher = (cipher * multiplier) % n
+
+            if self.oracle.experiment(cipher):
+                upper -= half
+            else:
+                lower += half
+
+            self.message = matasano.util.bytes_for_int(n * upper // denominator)
+            print(self.message)
+
+            assert upper >= lower, \
+                "Something wrong while updating values ({} vs {}).".format(
+                    upper,
+                    lower
+                )
+
+        return self.oracle.guess(self.message)

@@ -790,6 +790,23 @@ def fortyfive():
     return all(results)
 
 
+@challenge
+def fortysix():
+    """http://cryptopals.com/sets/6/challenges/46/"""
+    oracle = matasano.oracle.OracleRSAParity(
+        base64.b64decode(
+            b"VGhhdCdzIHdoeSBJIGZvdW5kIHlvdSBkb24ndCBwbGF5I"
+            b"GFyb3VuZCB3aXRoIHRoZSBGdW5reSBDb2xkIE1lZGluYQ"
+            b"=="
+        )
+    )
+    attacker = matasano.attacker.AttackerRSAParity(oracle)
+
+    result = attacker.attack()
+    print("Discovered message: {}.".format(attacker.message.decode("ascii")))
+    return result
+
+
 def main():
     """
     Read the argument from the command line,
