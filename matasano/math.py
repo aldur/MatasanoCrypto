@@ -48,7 +48,7 @@ def modinv(a: int, m: int) -> int:
 
     g, x, y = extended_gcd(a, m)
     if g != 1:
-        raise Exception("{} is not invertible mod({}).".format(a, m))
+        raise ValueError("{} is not invertible mod({}).".format(a, m))
     return x % m
 
 
@@ -84,8 +84,44 @@ def random_big_prime(N: int=1024, e=None) -> int:
     :param e: Useful to avoid problems during RSA key-generation.
     :return: A new big random prime.
     """
+    assert  N % 8 == 0
+
+    if N < 512:
+        return Crypto.Util.number.getPrime(N)
+
     if e is not None:
         return Crypto.Util.number.getStrongPrime(N, e)
     else:
         return Crypto.Util.number.getStrongPrime(N)
+
+
+def int_division_ceil(i: int, n: int) -> int:
+    """
+    Perform i / n and ceil the result.
+    Do not perform any floating point operation,
+    that could result in an overflow with
+    really big numbers.
+
+    :param i: The dividend.
+    :param n: The divisor.
+    :return: ceil(i / n)
+    """
+    if i % n == 0:
+        return i // n
+    else:
+        return (i // n) + 1
+
+
+def int_division_floor(i: int, n: int) -> int:
+    """
+    Perform i / n and floor the result.
+    Do not perform any floating point operation,
+    that could result in an overflow with
+    really big numbers.
+
+    :param i: The dividend.
+    :param n: The divisor.
+    :return: floor(i / n)
+    """
+    return i // n
 

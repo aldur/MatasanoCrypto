@@ -140,7 +140,7 @@ def un_pkcs_7(b: bytes, size: int) -> bytes:
     return bytes(b[:-padding])
 
 
-def pkcs_1_5(b: bytes, size: int) -> bytes:
+def pkcs_1_5(b: bytes, size: int) -> int:
     """
     PKCS#1.5 padding.
     Create a block of the form:
@@ -154,16 +154,44 @@ def pkcs_1_5(b: bytes, size: int) -> bytes:
 
     :param b: A buffer of bytes.
     :param size: The block size.
-    :return: The padded buffer.
+    :return: The padded buffer (as int).
     """
-    assert len(b) < size
+    assert len(b) < size - 3
 
-    padded = bytearray((0x00, 0x01))
+    padded = bytearray((0x00, 0x02))
     padded += bytearray(0xff for _ in range(size - 3 - len(b)))
     padded += bytearray((0x00,))
     padded += b
 
-    return bytes(padded)
+    return int.from_bytes(padded, byteorder="big")
+
+
+def un_pkcs_1_5(b: int, size: int) -> bytes:
+    """
+    PKCS#1.5 un-padding.
+    Check whether padding is correct,
+    remote it and return the message.
+
+    :param b: An integer, representing a padded buffer.
+    :param size: The block size.
+    :return: The un-padded message.
+    """
+    unpadded = b.to_bytes(size, "big")
+
+    if not (unpadded[0] == 0x00 and unpadded[1] == 0x02):
+        raise BadPaddingException
+    unpadded = unpadded[2:]
+
+    i = 0
+    while unpadded[i] == 0xff:
+        i += 1
+    unpadded = unpadded[i:]
+
+    if not (unpadded[0] == 0x00):
+        raise BadPaddingException
+
+    unpadded = unpadded[1:]
+    return unpadded
 
 
 def any_equal_block(b: bytes) -> bool:

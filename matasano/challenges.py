@@ -807,6 +807,21 @@ def fortysix():
     return result
 
 
+@challenge
+def fortyseven():
+    """http://cryptopals.com/sets/6/challenges/47/"""
+    oracle = matasano.oracle.OracleRSAPadding(
+        b"kick it, CC"
+    )
+    attacker = matasano.attacker.AttackerRSAPadding(oracle)
+
+    print("Please wait while performing the attack...")
+    print("Warning: this attack could take a long time.")
+    result = attacker.attack()
+    print("Discovered message: {}.".format(attacker.message.decode("ascii")))
+    return result
+
+
 def main():
     """
     Read the argument from the command line,

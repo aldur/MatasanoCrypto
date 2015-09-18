@@ -33,7 +33,11 @@ Automatically add test methods from each challenge.
 """
 excluded = {"challenge", "main"}  # manually exclude some functions.
 # exclude slow tests by default
-slows = {"thirtyeight", "thirtytwo", "thirtyone", "twentytwo", "twentyfour", "twenty"}
+slows = {
+    "twentytwo", "twentyfour", "twenty",
+    "thirtyeight", "thirtytwo", "thirtyone",
+    "fortyseven",
+}
 for f_name, f in inspect.getmembers(matasano.challenges, inspect.isfunction):
     if not f_name.startswith("_") and f_name not in excluded:
         test_challenge = functools.partialmethod(ChallengeTestCase.challenge, challenge_f=f)

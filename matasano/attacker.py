@@ -11,6 +11,7 @@ import math
 import random
 import functools
 import itertools
+import collections
 
 import matasano.oracle
 import matasano.blocks
@@ -1746,3 +1747,129 @@ class AttackerRSAParity(Attacker):
                 )
 
         return self.oracle.guess(self.message)
+
+
+class AttackerRSAPadding(Attacker):
+
+    """
+    Exploit the RSA padding oracle in order to apply
+    the Bleichenbacher [98] adaptive CC attack.
+    (http://archiv.infsec.ethz.ch/education/fs08/secsem/bleichenbacher98.pdf)
+
+    :param oracle: The oracle to be attacked.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleRSAPadding):
+        super().__init__(oracle)
+        self.message = None
+
+    def attack(self) -> bool:
+        """
+        Attack the oracle by repeatedly checking the parity
+        of a tampered ciphertext.
+        """
+        cipher, public = self.oracle.challenge()
+        assert self.oracle.experiment(cipher)
+
+        e, n = public
+        immutable_slice = collections.namedtuple(
+            "immutable_slice", ["start", "stop"]
+        )
+
+        k = n.bit_length()
+        B = pow(2, k - 16)
+        B2 = 2 * B
+        B3 = 3 * B
+
+        s_i = -1
+        c0 = cipher
+        M = {immutable_slice(B2, B3 - 1), }
+
+        def _is_done() -> bool:
+            """
+            Check whether the attack should stop.
+            :return: True or false.
+            """
+            if len(M) != 1:
+                return False
+
+            _M = M.copy()
+            inner_slice = _M.pop()
+            return inner_slice.start == inner_slice.stop
+
+        def _update_m() -> set:
+            """
+            After finding a new value for s_i,
+            update the M set.
+            """
+            new_m = set()
+
+            for a, b in M:
+                for r in range(
+                    matasano.math.int_division_ceil(a * s_i - B3 + 1, n),
+                    matasano.math.int_division_floor(b * s_i - B2, n) + 1
+                ):
+                    new_a = max(a, matasano.math.int_division_ceil(B2 + r * n, s_i))
+                    new_b = min(b, matasano.math.int_division_floor(B3 - 1 + r * n, s_i))
+
+                    if new_a <= new_b:
+                        new_m.add(
+                            immutable_slice(
+                                new_a,
+                                new_b
+                            )
+                        )
+
+            return new_m
+
+        def _iterate(s_minus_1: int) -> int:
+            """
+            Iterate for a new round.
+
+            :param s_minus_1: The previous s_i-1 value.
+            :return: The new s_i value.
+            """
+            assert len(M) != 0, \
+                "M should contain at least one element."
+
+            if len(M) > 1:
+                for inner_s in range(s_minus_1 + 1, n):
+                    if self.oracle.experiment(c0 * pow(inner_s, e, n)):
+                        return inner_s
+            else:  # len(M) == 1
+                a, b = M.copy().pop()
+
+                for r in range(
+                    ((b * s_minus_1 - B2) * 2) // n,
+                    n
+                ):
+                    for inner_s in range(
+                        (B2 + r * n) // b,
+                        ((B3 - 1 + r * n) // a) + 1
+                    ):
+                        if self.oracle.experiment(c0 * pow(inner_s, e, n)):
+                            return inner_s
+
+            assert False, \
+                "Something went wrong while finding s_i"
+
+        # Initial round, for i == 1
+        for new_s in range(matasano.math.int_division_ceil(n, B3), n):
+            if self.oracle.experiment(c0 * pow(new_s, e, n)):
+                s_i = new_s
+                M = _update_m()
+                break
+        else:
+            assert False, \
+                "Something went wrong while finding s_1"
+
+        while not _is_done():
+            s_i = _iterate(s_i)
+            M = _update_m()
+
+        a = M.pop().start
+        self.message = matasano.util.bytes_for_int(
+            a
+        )
+
+        return self.oracle.guess(a)

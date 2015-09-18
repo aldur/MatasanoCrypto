@@ -65,9 +65,19 @@ class BlocksTestCase(unittest.TestCase):
 
         size = 20
         padded = matasano.blocks.pkcs_1_5(b, size)
-        self.assertEqual(len(padded), size)
         self.assertEqual(
-            padded, b"\x00\x01\xff\x00" + b
+            padded.to_bytes(size, "big"), b"\x00\x02\xff\x00" + b
+        )
+
+        unpadded = matasano.blocks.un_pkcs_1_5(padded, size)
+        self.assertEqual(
+            b, unpadded
+        )
+
+        self.assertRaises(
+            matasano.blocks.BadPaddingException,
+            matasano.blocks.un_pkcs_1_5,
+            padded << 1, size
         )
 
     def test_un_pkcs(self):

@@ -1498,7 +1498,7 @@ class OracleRSAParity(Oracle):
         :return: The parity of the derived plaintext.
         """
         d, n = self._keys.priv
-        return pow(cipher, self._keys.priv.d, n) % 2 == 0
+        return pow(cipher, d, n) % 2 == 0
 
     def guess(self, guess: bytes) -> bool:
         """
@@ -1507,4 +1507,77 @@ class OracleRSAParity(Oracle):
         :param guess: The attacker's guess on the hidden message.
         :return: True if the guess is correct.
         """
+        return self._message == guess
+
+
+class OracleRSAPadding(Oracle):
+
+    """
+    This oracle is holding a hidden message.
+    It provides a function to check whether
+    any given plaintext from any given ciphertext
+    has been correctly PKCS-1.5 padded.
+    The attacker's guess is to discover the message.
+
+    :param message: The hidden message.
+    """
+
+    def __init__(self, message: bytes):
+        super().__init__()
+
+        size = 128
+        self._keys = None
+        e = 3
+
+        # 128 bits are too weak for the usual getStrongPrime()
+        while not self._keys:
+            try:
+                self._keys = matasano.public.rsa_keys(
+                    p=matasano.math.random_big_prime(size),
+                    q=matasano.math.random_big_prime(size),
+                    e=e
+                )
+            except ValueError:
+                # 3 is not invertible mod fi(n), try again.
+                pass
+
+        self.byte_size = size * 2 // 8
+        self._message = matasano.blocks.pkcs_1_5(
+            message,
+            self.byte_size
+        )
+        assert self._message < self._keys.pub.n
+
+    def challenge(self) -> tuple:
+        """
+        Return an encryption of the padded message to the caller.
+        :return: An encryption of the padded hidden message and the public key.
+        """
+        e, n = self._keys.pub
+        return pow(self._message, e, n), self._keys.pub
+
+    def experiment(self, cipher: int) -> bool:
+        """
+        Return true if the plaintext form the cipher has been correctly
+        PKCS padded.
+        :param cipher: The cipher to be tested.
+        :return: The padding validity of the plaintext.
+        """
+        d, n = self._keys.priv
+
+        padded = pow(cipher, d, n)
+        try:
+            matasano.blocks.un_pkcs_1_5(padded, self.byte_size)
+            return True
+        except matasano.blocks.BadPaddingException:
+            return False
+
+    def guess(self, guess: bytes) -> bool:
+        """
+        Evaluate the attacker's guess.
+
+        :param guess: The attacker's guess on the hidden message.
+        :return: True if the guess is correct.
+        """
+        print(guess)
         return self._message == guess
