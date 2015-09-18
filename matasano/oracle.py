@@ -1525,7 +1525,7 @@ class OracleRSAPadding(Oracle):
     def __init__(self, message: bytes):
         super().__init__()
 
-        size = 128
+        size = 384
         self._keys = None
         e = 3
 

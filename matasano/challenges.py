@@ -807,9 +807,7 @@ def fortysix():
     return result
 
 
-@challenge
-def fortyseven():
-    """http://cryptopals.com/sets/6/challenges/47/"""
+def _b98():
     oracle = matasano.oracle.OracleRSAPadding(
         b"kick it, CC"
     )
@@ -820,6 +818,18 @@ def fortyseven():
     result = attacker.attack()
     print("Discovered message: {}.".format(attacker.message.decode("ascii")))
     return result
+
+
+@challenge
+def fortyseven():
+    """http://cryptopals.com/sets/6/challenges/47/"""
+    return _b98()
+
+
+@challenge
+def fortyeight():
+    """http://cryptopals.com/sets/6/challenges/48/"""
+    return _b98()
 
 
 def main():

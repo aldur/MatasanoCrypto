@@ -36,7 +36,7 @@ excluded = {"challenge", "main"}  # manually exclude some functions.
 slows = {
     "twentytwo", "twentyfour", "twenty",
     "thirtyeight", "thirtytwo", "thirtyone",
-    "fortyseven",
+    "fortyseven", "fortyeight",
 }
 for f_name, f in inspect.getmembers(matasano.challenges, inspect.isfunction):
     if not f_name.startswith("_") and f_name not in excluded:
