@@ -16,7 +16,7 @@ Any other requirement is listed in the `requirements.txt` file.
 $ git clone https://github.com/aldur/MatasanoCrypto.git
 $ cd MatasanoCrypto
 $ python3 setup.py develop
-$ python3 bin/matasano <challenge #>
+$ python3 bin/matasano <challenge number>
 ```
 
 ## Read it
@@ -30,8 +30,8 @@ Navigate the code from there.
 - [x] Set 3
 - [x] Set 4
 - [x] Set 5
-- [ ] Set 6
-- [ ] Set 7
+- [x] Set 6
+- [ ] Set 7 (postponed until further notice)
 
 ## License
 MIT License.
