@@ -237,6 +237,9 @@ def aes_cbc(
     :returns: The encrypted/decrypted buffer and the employed IV.
 
     """
+    assert len(b) % 16 == 0
+    assert key
+
     exit_buffer = b''
     if not iv:
         iv = b'\x00' * 16 if not random_iv \
