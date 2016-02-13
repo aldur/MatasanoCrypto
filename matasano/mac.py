@@ -7,6 +7,7 @@ import functools
 
 import matasano.hash
 import matasano.util
+import matasano.blocks
 
 __author__ = 'aldur'
 
@@ -85,3 +86,21 @@ hmac_sha256 = functools.partial(
     hash_function=matasano.hash.SHA256,
     block_size=64
 )
+
+
+def aes_cbc_mac(
+        key: bytes, b: bytes, iv: bytes=None
+) -> bytes:
+    """
+    AES CBC-MAC.
+
+    :param key: The verification key.
+    :param b: The buffer to be authenticated.
+    :param iv: The initial vector.
+    :return: A valid MAC for b, with given key and IV.
+
+    """
+    return matasano.blocks.aes_cbc(
+        key=key, b=b, iv=iv,
+        decrypt=False, random_iv=False
+    )[0][-16:]

@@ -33,6 +33,26 @@ class MacTestCase(unittest.TestCase):
 
         self.assertNotEqual(m_one, m_two)
 
+    def test_cbc_mac(self):
+        k = b'secret_key_12345'
+        b = b'a plaintext mess'
+
+        # Got it as follows:
+        """
+        $ echo -n 'a plaintext mess' | \
+            openssl enc -e -aes-128-cbc \
+            -K $(echo -n secret_key_12345 | xxd -ps) \
+            -iv 0000000000000000 -nosalt -nopad | \
+            tail -c 16 | xxd -ps -c 16
+        """
+        truth = bytes.fromhex('ecb983430bf5b6184fafc91fd97af552')
+
+        f = matasano.mac.aes_cbc_mac
+        self.assertEqual(
+            f(k, b),
+            truth
+        )
+
     def test_sha1_hmac(self):
         for k in [b"SECRET_KEY", bytes(200)]:
             m = b"Yep, this is a message."
