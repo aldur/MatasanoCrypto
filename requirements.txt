@@ -1,2 +1,2 @@
 pycrypto==2.6.1
-colorama==0.3.3
+colorama==0.3.6
