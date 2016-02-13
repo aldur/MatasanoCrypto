@@ -320,7 +320,7 @@ def mt19937_stream(
 
     while i < len(b):
         key = mt_prng.extract_number()  # 32 bits
-        result[i] ^= key >> 24 & 0xff # 8 MSB
+        result[i] ^= key >> 24 & 0xff  # 8 MSB
 
         try:
             result[i + 1] ^= key >> 16 & 0xff

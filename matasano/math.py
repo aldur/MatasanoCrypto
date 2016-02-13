@@ -84,7 +84,7 @@ def random_big_prime(N: int=1024, e=None) -> int:
     :param e: Useful to avoid problems during RSA key-generation.
     :return: A new big random prime.
     """
-    assert  N % 8 == 0
+    assert N % 8 == 0
 
     if N < 512:
         return Crypto.Util.number.getPrime(N)

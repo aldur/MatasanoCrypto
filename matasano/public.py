@@ -561,8 +561,7 @@ class SRPServer:
 
         u = int.from_bytes(
             matasano.hash.SHA256(
-                matasano.util.bytes_for_int(A)
-                +
+                matasano.util.bytes_for_int(A) +
                 matasano.util.bytes_for_int(B)
             ),
             byteorder='little'
@@ -635,8 +634,7 @@ class SRPClient:
 
         u = int.from_bytes(
             matasano.hash.SHA256(
-                matasano.util.bytes_for_int(A)
-                +
+                matasano.util.bytes_for_int(A) +
                 matasano.util.bytes_for_int(B)
             ),
             byteorder='little'

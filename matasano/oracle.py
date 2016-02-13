@@ -707,7 +707,7 @@ class OracleMT19937Clone(Oracle):
         truth = [
             self._mt_prng.extract_number()
             for _ in range(10)
-            ]
+        ]
         assert len(truth) == len(guess)
         return all(truth[i] == g for i, g in enumerate(guess))
 

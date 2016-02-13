@@ -300,7 +300,7 @@ class AttackerByteAtATimeEcb(Attacker):
                 trap + c
             )[slice_to_ith_block]: c
             for c in (bytes(chr(c), "ascii") for c in range(0, 128))
-            }
+        }
 
         """
         Now we simply remove the already unhidden string from the trap.
@@ -478,7 +478,7 @@ class AttackerHarderByteAtATimeEcb(AttackerByteAtATimeEcb):
                 trap + c
             )[slice_to_ith_block]: c
             for c in (bytes(chr(c), "ascii") for c in range(0, 128))
-            }
+        }
 
         """
         Now we simply remove the already unhidden string from the trap.
@@ -644,9 +644,9 @@ class AttackerFixedNonceCTR(Attacker):
                 b[i] if len(b) > i else None  # String len differs
                 for b
                 in buffers
-                ]
-            for i in range(max_len)
             ]
+            for i in range(max_len)
+        ]
 
         # Guess the key
         key = [
@@ -658,12 +658,12 @@ class AttackerFixedNonceCTR(Attacker):
                 )
             ))
             for b in buckets
-            ]
+        ]
         assert len(key) == len(buckets)
 
         k_used = {
             k: 0 for k in range(len(key))
-            }
+        }
 
         k = 0
         while k < len(key):
@@ -712,10 +712,10 @@ class AttackerMT19937Seed(Attacker):
         outputs = {
             matasano.prng.MT19937(seed).extract_number(): seed
             for seed in range(
-            start_time + self.oracle.sleep_min,
-            start_time + self.oracle.sleep_max + 1
-        )
-            }
+                start_time + self.oracle.sleep_min,
+                start_time + self.oracle.sleep_max + 1
+            )
+        }
 
         assert challenge in outputs, \
             "Something went wrong, can't find challenge in outputs."
@@ -854,7 +854,7 @@ class AttackerMT19937Clone(Attacker):
         challenge = [
             AttackerMT19937Clone.untemper(y)
             for y in challenge
-            ]
+        ]
         mt_prng = matasano.prng.MT19937(0)
         mt_prng.mt = challenge
 
@@ -1156,7 +1156,7 @@ class AttackerRemoteSHA1HMac(Attacker):
             times = {
                 k: v for k, v in times.items()
                 if v >= (i + 1) * sleep_time
-                }
+            }
 
             while len(times) > 1:
                 _times = dict()
@@ -1173,7 +1173,7 @@ class AttackerRemoteSHA1HMac(Attacker):
                 times = {
                     k: v for k, v in _times.items()
                     if v >= (i + 1) * sleep_time
-                    }
+                }
                 time.sleep(5)
 
             self.forged_mac[i] = list(times.keys())[0]
