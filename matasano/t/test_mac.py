@@ -53,6 +53,17 @@ class MacTestCase(unittest.TestCase):
             truth
         )
 
+    def test_cbc_mac_pad(self):
+        k = b'YELLOW SUBMARINE'
+        b = b"alert('MZA who was that?');\n"
+        truth = bytes.fromhex('296b8d7cb78a243dda4d0a61d33bbdd1')
+
+        f = matasano.mac.aes_cbc_mac
+        self.assertEqual(
+            f(k, b, pad=True),
+            truth
+        )
+
     def test_sha1_hmac(self):
         for k in [b"SECRET_KEY", bytes(200)]:
             m = b"Yep, this is a message."

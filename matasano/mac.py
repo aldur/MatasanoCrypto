@@ -89,7 +89,8 @@ hmac_sha256 = functools.partial(
 
 
 def aes_cbc_mac(
-        key: bytes, b: bytes, iv: bytes=None
+        key: bytes, b: bytes, iv: bytes=None,
+        pad=False
 ) -> bytes:
     """
     AES CBC-MAC.
@@ -97,10 +98,15 @@ def aes_cbc_mac(
     :param key: The verification key.
     :param b: The buffer to be authenticated.
     :param iv: The initial vector.
+    :param pad: Whether to apply PKCS-7 padding to the buffer.
     :return: A valid MAC for b, with given key and IV.
 
     """
+    if pad:
+        b = matasano.blocks.pkcs_7(b, 16)
+
     return matasano.blocks.aes_cbc(
         key=key, b=b, iv=iv,
         decrypt=False, random_iv=False
     )[0][-16:]
+
