@@ -1914,3 +1914,37 @@ class AttackerCBCMacForge(Attacker):
 
         return self.oracle.guess(trap, forged_mac)
 
+
+class AttackerCBCMacHash(Attacker):
+
+    """
+    Find a CBC-MAC as hash collision.
+
+    :param oracle: The oracle to be attacked.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleCBCMacHash):
+        super().__init__(oracle)
+
+        self.message = None
+        self.digest = None
+        self.collision = None
+
+    def attack(self) -> bool:
+        """
+        Another length extension attack, done in reverse.
+        Now we first get the extension, and then we append it
+        to something we generated.
+
+        This will result in a collision, because the CBC-MAC
+        of the suffix will be the same of the whole.
+        """
+        self.message, key, self.digest = self.oracle.challenge()
+
+        trap = b"alert('Ayo, the Wu is back!'); //"  # The // will let the JS engine ignore the rest.
+        assert len(trap) % 16 == 0, len(trap)
+        self.collision = trap + matasano.util.xor(
+            matasano.mac.aes_cbc_mac(key, trap), self.message[0:16]
+        ) + self.message[16:]
+
+        return self.oracle.guess(self.collision)

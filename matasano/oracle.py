@@ -1637,3 +1637,46 @@ class OracleCBCMac(Oracle):
         """
         assert self._message != message
         return matasano.mac.aes_cbc_mac(self._key, message, iv=None) == mac
+
+
+class OracleCBCMacHash(Oracle):
+
+    """
+    This oracle computes hashes by using CBC-MAC,
+    a public known key and a fixed IV (0).
+
+    The attacker's goal is to find any collision of a given
+    hash digest.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.key = b"YELLOW SUBMARINE"
+        self.message = b"alert('MZA who was that?');\n"
+        self.hash = matasano.mac.aes_cbc_mac(self.key, self.message, pad=True)
+
+    def challenge(self) -> typing.Tuple[bytes]:
+        """
+        Return to the caller the plaintext message,
+        the key and the hash of the message.
+
+        :return: A plaintext message, the MAC key and the plaintext's hash.
+        """
+        return self.message, self.key, self.hash
+
+    def guess(self, message: bytes) -> bool:
+        """
+        Verify whether the attacker has found a collision.
+
+        :param message: The message to be verified.
+        :return: Whether the message digest is a collision of the original hash.
+        """
+        assert self.message != message
+        return matasano.mac.aes_cbc_mac(self.key, message, pad=True) == self.hash
+
+    def experiment(self, *args: bytes) -> bytes:
+        """
+        This oracle doesn't provide experiments.
+        :param args: An iterable of bytes.
+        """
+        return super().experiment(args)

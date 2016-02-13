@@ -845,6 +845,19 @@ def fortynine():
     return result
 
 
+@challenge
+def fifty():
+    """http://cryptopals.com/sets/7/challenges/50/"""
+    oracle = matasano.oracle.OracleCBCMacHash()
+    attacker = matasano.attacker.AttackerCBCMacHash(oracle)
+
+    result = attacker.attack()
+    print("Original message: {}.\nCollision: {}.\nDigest: {}.".format(
+        attacker.message, attacker.collision, binascii.hexlify(attacker.digest).decode('ascii')
+    ))
+    return result
+
+
 def main():
     """
     Read the argument from the command line,
