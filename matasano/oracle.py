@@ -19,6 +19,7 @@ import http.client
 import urllib.parse
 import threading
 import socketserver
+import typing
 
 import matasano.blocks
 import matasano.util
@@ -1581,3 +1582,58 @@ class OracleRSAPadding(Oracle):
         """
         print(guess)
         return self._message == guess
+
+
+class OracleCBCMac(Oracle):
+
+    """
+    This oracle represents an online banking web server.
+
+    It holds a secret key,
+    used to verify messages from the client.
+
+    It also exposes (for the sake of the challenge)
+    an endpoint used by clients to sign a message,
+    by using CBC-MAC, the secret key it holds and
+    an IV fixed to 0.
+
+    The attacker's goal is to forge a message,
+    giving to himself 1M of some given currency.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._key = matasano.util.random_aes_key()
+        self._message = b'from=0_A&tx_list=0_B:10;0_C:1000'
+
+    def challenge(self) -> typing.Tuple[bytes]:
+        """
+        Return to the caller a plaintext message,
+        and its MAC.
+
+        :return: A plaintext message, and its MAC.
+        """
+        return self._message, matasano.mac.aes_cbc_mac(self._key, self._message, None)
+
+    def experiment(self, message: bytes) -> bytes:
+        """
+        Allow the caller to sign a message, using CBC-MAC.
+        It only works for transaction coming from "Eve".
+
+        :param message: Message to be signed.
+        :return: The CBC-MAC of the message.
+        """
+        assert message.startswith(b'from=0_E')
+        return matasano.mac.aes_cbc_mac(self._key, message, iv=None)
+
+    def guess(self, message: bytes, mac: bytes) -> bool:
+        """
+        Verify the received transaction.
+        Return True if `mac` is a valid CBC-MAC for the given `message`.
+
+        :param message: The message to be verified.
+        :param mac: A CBC-MAC.
+        :return: Whether the message has a valid MAC.
+        """
+        assert self._message != message
+        return matasano.mac.aes_cbc_mac(self._key, message, iv=None) == mac

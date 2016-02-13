@@ -832,6 +832,19 @@ def fortyeight():
     return _b98()
 
 
+@challenge
+def fortynine():
+    """http://cryptopals.com/sets/7/challenges/49/"""
+    oracle = matasano.oracle.OracleCBCMac()
+    attacker = matasano.attacker.AttackerCBCMacForge(oracle)
+
+    result = attacker.attack()
+    print("Found message: {}.\nForged MAC: {}.".format(
+        attacker.message, binascii.hexlify(attacker.forged_mac).decode('ascii')
+    ))
+    return result
+
+
 def main():
     """
     Read the argument from the command line,

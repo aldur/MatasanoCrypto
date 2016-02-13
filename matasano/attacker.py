@@ -1873,3 +1873,44 @@ class AttackerRSAPadding(Attacker):
         )
 
         return self.oracle.guess(a)
+
+
+class AttackerCBCMacForge(Attacker):
+
+    """
+    Forge a CBC-MAC by using a length extension attack.
+
+    :param oracle: The oracle to be attacked.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleCBCMac):
+        super().__init__(oracle)
+
+        self.forged_mac = None
+        self.message = None
+
+    def attack(self) -> bool:
+        """
+        Forge a valid MAC for an extended message as follows:
+
+        - Get the original message and its MAC.
+        - Ask the Oracle for a new MAC (m), for a valid message.
+        - Now, apply length extension:
+            m is going to be a valid MAC for the original message
+            plus the exclusive OR between the original MAC and the
+            first block of the attacker's message plus the remainder
+            of the attacker's message.
+
+        :return: True on success.
+        """
+        message, mac = self.oracle.challenge()
+
+        trap = b'from=0_E&tx_list=0_B:10;0_C:1000;0_E:10000000000'
+        forged_mac = self.oracle.experiment(trap)
+        trap = message + matasano.util.xor(mac, trap[0:16]) + trap[16:]
+
+        self.forged_mac = forged_mac
+        self.message = trap
+
+        return self.oracle.guess(trap, forged_mac)
+
