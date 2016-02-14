@@ -12,6 +12,7 @@ import random
 import functools
 import itertools
 import collections
+import string
 
 import matasano.oracle
 import matasano.blocks
@@ -1948,3 +1949,37 @@ class AttackerCBCMacHash(Attacker):
         ) + self.message[16:]
 
         return self.oracle.guess(self.collision)
+
+
+class AttackerCompress(Attacker):
+
+    """
+    Retrieve a compressed and then encrypted session id.
+
+    :param oracle: The oracle to be attacked.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleCompress):
+        super().__init__(oracle)
+        self.session_id = b''
+
+    def attack(self) -> bool:
+        """
+        We have a compression oracle and we have partial knowledge of the transmitted plaintext.
+        We can build a message that is exactly equal to the transmitted message, minus the session id inside the cookie.
+        This way, each letter is going to end up being duplicated, except for those in the session id.
+        Finding each letter thus reduces to finding those message that are compressed to the smallest size.
+        """
+        charset = (string.ascii_uppercase + string.ascii_lowercase + string.digits + "+/=").encode('ascii')
+
+        prefix = b"""POST / HTTP/1.1\nHost: hapless.com\nCookie: sessionid="""
+        suffix = """Content-Length: {}\n{}"""
+
+        encrypted_s_id = self.oracle.challenge()
+        for i in range(len(encrypted_s_id)):
+            self.session_id += bytes([min(charset, key=lambda c: self.oracle.experiment(
+                prefix + self.session_id + bytes([c]) +
+                suffix.format(len(self.session_id), self.session_id).encode('ascii')))])
+            print(self.session_id)
+
+        return self.oracle.guess(self.session_id)

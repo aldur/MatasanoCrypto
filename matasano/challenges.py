@@ -858,6 +858,17 @@ def fifty():
     return result
 
 
+@challenge
+def fiftyone():
+    """http://cryptopals.com/sets/7/challenges/51/"""
+    oracle = matasano.oracle.OracleCompress(b"TmV2ZXIgcmV2ZWFsIHRoZSBXdS1UYW5nIFNlY3JldCE=")
+    attacker = matasano.attacker.AttackerCompress(oracle)
+
+    result = attacker.attack()
+    print("Discovered session ID: {}.".format(attacker.session_id.decode('ascii')))
+    return result
+
+
 def main():
     """
     Read the argument from the command line,

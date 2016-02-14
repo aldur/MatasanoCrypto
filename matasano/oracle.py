@@ -20,6 +20,7 @@ import urllib.parse
 import threading
 import socketserver
 import typing
+import zlib
 
 import matasano.blocks
 import matasano.util
@@ -1680,3 +1681,66 @@ class OracleCBCMacHash(Oracle):
         :param args: An iterable of bytes.
         """
         return super().experiment(args)
+
+
+class OracleCompress(Oracle):
+
+    """
+    This oracle compresses and then encrypts
+    a HTTP request/response header.
+
+    The attacker's goal is to find a hidden session ID,
+    stored as a cookie.
+    """
+
+    def __init__(self, session_id: bytes):
+        super().__init__()
+
+        self._session_id = session_id
+        self.session_len = len(self._session_id)  # We allow the attacker to know the len of the session key.
+        self._guessed = False
+
+    def parse_request(self, request: bytes) -> bytes:
+        """
+        Parse the request, including it inside a HTTP pseudo-packet.
+
+        :param request: The request to be parsed.
+        :return: The parsed request.
+        """
+        return """POST / HTTP/1.1\nHost: hapless.com\nCookie: sessionid={}\nContent-Length: {}\n{}""".format(
+            self._session_id.decode('ascii'), len(request),
+            request.decode('ascii')
+        ).encode('ascii')
+
+    def challenge(self) -> typing.Tuple[bytes]:
+        """
+        Return to the caller an encryption of the session ID, without compression.
+
+        :return: an encryption of the session ID.
+        """
+        return matasano.blocks.mt19937_stream(random.randint(0, 2 ** 32 - 1), self._session_id)
+
+    def guess(self, session_id: bytes) -> bool:
+        """
+        Verify whether the attacker has found a the correct session_id.
+
+        :param session_id: The session id to be verified.
+        :return: Whether the attacker's guess is correct.
+        """
+        if self._guessed:
+            raise CheatingException("You can only guess once!")
+        self._guessed = True
+        return session_id == self._session_id
+
+    def experiment(self, message) -> int:
+        """
+        A compression oracle.
+        Given a message, compress it and then encrypt it
+        by using a stream cipher and a random key.
+
+        :param message: The message passed to the oracle.
+        :return: The length of the compressed and then encrypted message.
+        """
+        return len(
+            matasano.blocks.mt19937_stream(random.randint(0, 2 ** 32 - 1), zlib.compress(self.parse_request(message)))
+        )
