@@ -1693,11 +1693,13 @@ class OracleCompress(Oracle):
     stored as a cookie.
     """
 
+    REQUEST_FORMATTER = ("""POST / HTTP/1.1\nHost: hapless.com\nCookie: sessionid={0}"""
+                         """\nContent-Length: {1}\n{2}""")
+
     def __init__(self, session_id: bytes):
         super().__init__()
 
         self._session_id = session_id
-        self.session_len = len(self._session_id)  # We allow the attacker to know the len of the session key.
         self._guessed = False
 
     def parse_request(self, request: bytes) -> bytes:
@@ -1707,9 +1709,8 @@ class OracleCompress(Oracle):
         :param request: The request to be parsed.
         :return: The parsed request.
         """
-        return """POST / HTTP/1.1\nHost: hapless.com\nCookie: sessionid={}\nContent-Length: {}\n{}""".format(
-            self._session_id.decode('ascii'), len(request),
-            request.decode('ascii')
+        return self.REQUEST_FORMATTER.format(
+            self._session_id.decode('ascii'), len(request), request.decode('ascii')
         ).encode('ascii')
 
     def challenge(self) -> typing.Tuple[bytes]:
@@ -1742,5 +1743,8 @@ class OracleCompress(Oracle):
         :return: The length of the compressed and then encrypted message.
         """
         return len(
-            matasano.blocks.mt19937_stream(random.randint(0, 2 ** 32 - 1), zlib.compress(self.parse_request(message)))
+            matasano.blocks.aes_cbc(
+                matasano.util.random_aes_key(),
+                matasano.blocks.pkcs_7(zlib.compress(self.parse_request(message)), 16)
+            )[0]
         )

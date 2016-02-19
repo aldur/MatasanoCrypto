@@ -1966,20 +1966,42 @@ class AttackerCompress(Attacker):
     def attack(self) -> bool:
         """
         We have a compression oracle and we have partial knowledge of the transmitted plaintext.
-        We can build a message that is exactly equal to the transmitted message, minus the session id inside the cookie.
-        This way, each letter is going to end up being duplicated, except for those in the session id.
-        Finding each letter thus reduces to finding those message that are compressed to the smallest size.
-        """
-        charset = (string.ascii_uppercase + string.ascii_lowercase + string.digits + "+/=").encode('ascii')
+        We can build a message that is exactly equal to the transmitted message,
+        minus the session id inside the cookie.
+        This way, each letter is going to end up being duplicated,
+        except for those in the session id.
 
-        prefix = b"""POST / HTTP/1.1\nHost: hapless.com\nCookie: sessionid="""
-        suffix = """Content-Length: {}\n{}"""
+        Finding each letter thus reduces to finding those message that are compressed to the smallest size.
+
+        In the second version of the challenge things get more complicated, because the
+        oracle is using a block-cipher and thus we may have the real length of the message
+        hidden behind a padding.
+        In such case, we use additional characters (that we're sure to never appear inside the plaintext)
+        until we find a unique candidate.
+        """
+        charset = (string.ascii_letters + string.digits + "+/=").encode('ascii')
+        padding = '!"#$%&\'()*,;<>?@[\\]^_`{|}~'  # No Base64 and not inside the plaintext
 
         encrypted_s_id = self.oracle.challenge()
-        for i in range(len(encrypted_s_id)):
-            self.session_id += bytes([min(charset, key=lambda c: self.oracle.experiment(
-                prefix + self.session_id + bytes([c]) +
-                suffix.format(len(self.session_id), self.session_id).encode('ascii')))])
-            print(self.session_id)
+        for _ in range(len(encrypted_s_id)):
+            for j in range(0, len(padding)):
+                counts = collections.defaultdict(list)
 
+                for c in charset:
+                    l = self.oracle.experiment(
+                        self.oracle.REQUEST_FORMATTER.format(
+                            (self.session_id.decode('ascii') + chr(c) + padding[:j]) * 3,
+                            len(self.session_id), self.session_id.decode('ascii')
+                        ).encode('ascii')
+                    )
+                    counts[l].append(c)
+
+                m = min(counts)
+                if len(counts[m]) == 1:
+                    self.session_id += bytes([counts[m][0]])
+                    break
+            else:
+                assert False, "Something went wrong while guessing next character"
+
+            print(self.session_id)
         return self.oracle.guess(self.session_id)
