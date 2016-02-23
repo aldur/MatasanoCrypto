@@ -10,6 +10,7 @@ import binascii
 import hashlib
 
 import matasano.hash
+import matasano.blocks
 
 __author__ = 'aldur'
 
@@ -63,6 +64,27 @@ class HashTestCase(unittest.TestCase):
                 ),
                 truth
             )
+
+    def test_h_AES128(self):
+        # Test for correct length and runtime failures
+        f = matasano.hash.h_AES128
+        h = f(b"foobar")
+        self.assertEqual(len(h), 8)
+        h = f(b"foobar" * 38, b"a initial state")
+        self.assertEqual(len(h), 8)
+
+    def test_weak_collision(self):
+        f = matasano.hash.weak_iterated_hash
+        self.assertEqual(
+            f((118).to_bytes(16, 'little')),
+            f((351).to_bytes(16, 'little'))
+        )
+
+        # Mix IV and block concatenation
+        self.assertEqual(
+            f((125).to_bytes(16, 'little'), f((118).to_bytes(16, 'little'))),
+            f((351).to_bytes(16, 'little') + (402).to_bytes(16, 'little')),
+        )
 
 
 if __name__ == '__main__':

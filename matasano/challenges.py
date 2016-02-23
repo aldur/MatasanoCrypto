@@ -869,6 +869,72 @@ def fiftyone():
     return result
 
 
+@challenge
+def fiftytwo():
+    """http://cryptopals.com/sets/7/challenges/52/"""
+    weak_hash = matasano.hash.weak_iterated_hash
+    semi_weak_hash_output = 3  # bytes
+    semi_weak_hash = matasano.hash.make_md_hash_block(
+        output_len=semi_weak_hash_output,
+        block_len=16,
+        block_cipher=matasano.blocks.aes_ecb,
+        padding_function=matasano.blocks.naive_block_padding
+    )
+
+    def f(hash_f, n: int):
+        """
+        Given the hash function, find 2 ** n colliding messages.
+
+        :param hash_f: The hash function to be used.
+        :param n: A integer.
+        :return: The 2 ** n colliding messages.
+        """
+        collisions = []
+
+        # Find the collisions.
+        previous_collision = b''
+        for k in range(n):
+            hashes = {}
+
+            for i in range(0, 2 ** 16):
+                h = hash_f(matasano.util.bytes_for_int(i, length=16), state=previous_collision)
+
+                if h in hashes:
+                    previous_collision = h
+                    collisions.append((hashes[h], i))
+                    break
+                else:
+                    hashes[h] = i
+            else:
+                assert False, "Something went wrong while finding collisions"
+
+        # And build the colliding messages.
+        messages = {matasano.util.bytes_for_int(n, length=16) for n in collisions[0]}
+        for suffixes in collisions[1:]:
+            messages = {
+                message + matasano.util.bytes_for_int(suffix, length=16)
+                for message in messages
+                for suffix in suffixes
+            }
+
+        return messages
+
+    semi_weak_hash_output *= 4  # Halved, to bits
+    weak_collisions = f(weak_hash, semi_weak_hash_output)
+    assert len(weak_collisions) == 2 ** semi_weak_hash_output
+
+    semi_weak_collisions = set()
+    for c in weak_collisions:
+        h = semi_weak_hash(c)
+        if h in semi_weak_collisions:
+            print("Collision found: {}.".format(c))
+            return True
+        else:
+            semi_weak_collisions.add(h)
+
+    return False
+
+
 def main():
     """
     Read the argument from the command line,

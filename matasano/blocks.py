@@ -91,6 +91,29 @@ def pad_with_buffer(b: bytes, pad: bytes) -> bytes:
     return b
 
 
+def naive_block_padding(b: bytes, size: int) -> bytes:
+    """
+    A naive padding implementation.
+
+    Given the block size, pad the input buffer with '\x00' bytes,
+    so that the result is a multiple of the specified size.
+
+    If the buffer is greater than 0, but already a multiple
+    of `size` it's returned unmodified.
+
+    :param b: A buffer of bytes.
+    :param size: The block size.
+    :return: The padded buffer.
+    """
+    assert size <= 0xff
+
+    l = len(b)
+    if l > 0 and l % size == 0:
+        return b
+
+    return b + b'\x00' * (size - (l % size))
+
+
 def pkcs_7(b: bytes, size: int) -> bytes:
     """
     PKCS#7 padding.
@@ -215,7 +238,7 @@ def aes_ecb(key: bytes, b: bytes, decrypt: bool=False) -> bytes:
 
     """
     assert len(b) % 16 == 0
-    assert len(key) == 16
+    assert len(key) == 16, "Wrong key len: {}".format(len(key))
 
     aes = AES.new(key, AES.MODE_ECB)
     return aes.encrypt(b) if not decrypt else aes.decrypt(b)

@@ -12,6 +12,7 @@ import struct
 import functools
 
 import matasano.util
+import matasano.blocks
 
 __author__ = 'aldur'
 
@@ -246,3 +247,46 @@ def SHA256(b: bytes) -> bytes:
     h = hashlib.sha256()
     h.update(b)
     return h.digest()
+
+
+def make_md_hash_block(output_len: int, block_len: int, block_cipher, padding_function) -> bytes:
+    """
+    Apply the Merkle-Damgard transform, by using a block cipher instead of a compression function.
+
+    :param output_len: The desired output length.
+    :param block_len: The length of the input of the block cipher.
+    :param block_cipher: The block cipher to use.
+    :param padding_function: Function used to pad inputs not aligned with the block length.
+    :return: The message hash digest.
+    """
+
+    assert output_len <= block_len
+    assert block_cipher
+    assert padding_function
+
+    def _md_hash(
+            message: bytes,
+            state: bytes=b''
+    ) -> bytes:
+        message = padding_function(message, block_len)
+        for i in range(0, len(message), block_len):
+            state = block_cipher(padding_function(state, block_len)[:block_len], message[i:i + block_len])[:output_len]
+        return state
+
+    return _md_hash
+
+
+h_AES128 = make_md_hash_block(
+    output_len=8,
+    block_len=16,
+    block_cipher=matasano.blocks.aes_ecb,
+    padding_function=matasano.blocks.pkcs_7
+)
+
+
+weak_iterated_hash = make_md_hash_block(
+    output_len=2,
+    block_len=16,
+    block_cipher=matasano.blocks.aes_ecb,
+    padding_function=matasano.blocks.naive_block_padding
+)
