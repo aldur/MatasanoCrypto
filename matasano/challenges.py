@@ -23,6 +23,7 @@ import contextlib
 import functools
 import colorama
 import pkg_resources
+import typing
 
 __author__ = "aldur"
 
@@ -933,6 +934,130 @@ def fiftytwo():
             semi_weak_collisions.add(h)
 
     return False
+
+
+@challenge
+def fiftythree():
+    """http://cryptopals.com/sets/7/challenges/53/"""
+    # Yes, this is not a 'proper' MD length-padded hash,
+    # but we make sure to respect the rules below.
+    weak_hash = matasano.hash.weak_iterated_hash
+    block_size = 16
+
+    def alpha_collision(alpha: int, initial_state: bytes) -> typing.Tuple[bytes, bytes, bytes]:
+        """
+        As described, generate a collisions between a single block message
+        and a message of length `alpha`.
+
+        :param alpha: The fixed length parameter.
+        :param initial_state: The initial state of the hash function.
+        :return: The collision and the two colliding messages.
+        """
+        single_block_hashes = {
+            weak_hash(m, state=initial_state): m
+            for m in (matasano.util.bytes_for_int(m, block_size) for m in range(2 ** block_size))
+        }
+
+        dummy = b"\x42" * block_size * alpha
+        dummy_state = weak_hash(dummy, initial_state)
+
+        for m in range(2 ** block_size):
+            m = matasano.util.bytes_for_int(m, block_size)
+            dummy_h = weak_hash(m, state=dummy_state)
+
+            if dummy_h in single_block_hashes:
+                return dummy_h, single_block_hashes[dummy_h], dummy + m
+
+        assert False, "Something went wrong while finding a collision."
+
+    def make_expandable_message(k: int, initial_state: bytes=b'') -> typing.Tuple[bytes, typing.List]:
+        """
+        Generate a (k, k + 2 ** (k − 1)) expandable message.
+
+        :param k: The fixed length parameter.
+        :param initial_state: The initial state of the hash function.
+        :return: The final state of the hash function and the expandable message.
+        """
+        expandable = []
+
+        for i in range(1, k + 1):
+            initial_state, single_block_message, dummy_message = \
+                alpha_collision(2 ** (k - i), initial_state)
+
+            assert len(single_block_message) == block_size
+            assert len(dummy_message) == (2 ** (k - i) + 1) * block_size
+
+            expandable.append((single_block_message, dummy_message))
+
+        assert len(expandable) == k
+        return initial_state, expandable
+
+    def produce_message(expandable: typing.List, desired_len: int) -> bytes:
+        """
+        Produce a message of desired length, starting from the expandable message.
+
+        :param expandable: The list of k tuples forming the expandable message.
+        :param desired_len: The desired message length.
+        :return: A message of the desired length.
+        """
+        assert expandable
+        assert len(expandable[0][0]) == block_size
+
+        k = len(expandable)
+        assert k <= desired_len // block_size <= k + 2 ** k - 1
+
+        message = b''
+        for i, e in enumerate(expandable):
+            if len(message) + len(e[1]) + (len(expandable) - i - 1) * block_size <= desired_len:
+                message += e[1]
+            else:
+                message += e[0]
+
+        assert len(message) == desired_len, \
+            "Produced a message of length {}, different from desired length ({})".format(len(message), desired_len)
+        return message
+
+    k = 8
+    original_message = matasano.util.random_bytes_range(2 ** k)
+    assert len(original_message) % block_size == 0
+
+    initial_state = b''
+    hash_to_length = {}  # Map each intermediate hash to the processed message length
+    for i in range(0, len(original_message), block_size):
+        initial_state = weak_hash(original_message[i:i + block_size], initial_state)
+        if i > k * block_size:
+            hash_to_length[initial_state] = i
+    assert initial_state == weak_hash(original_message)
+
+    final_state, expandable_message = make_expandable_message(k)
+    assert len(expandable_message) == k
+    assert \
+        weak_hash(b''.join(e[0] for e in expandable_message)) == weak_hash(b''.join(e[1] for e in expandable_message))
+
+    bridge_index = -1
+    for bridge in range(2 ** block_size):  # Find a collision against a single block
+        bridge = matasano.util.bytes_for_int(bridge, length=16)
+        h = weak_hash(bridge, final_state)  # Starting from the final state of the exp. message
+
+        if h in hash_to_length:
+            bridge_index = hash_to_length[h]
+            break
+    else:
+        assert False, "Something went wrong while finding bridge collision"
+
+    second_pre_image = produce_message(expandable_message, bridge_index)
+    assert weak_hash(second_pre_image + bridge) in hash_to_length
+
+    collision = second_pre_image + bridge + original_message[bridge_index + len(bridge):]
+
+    # Make sure that colliding message has same length.
+    assert len(original_message) == len(collision), \
+        "Original message length {} - Colliding message length {}".format(len(original_message), len(collision))
+
+    print("Original message: {}.".format(original_message))
+    print("Colliding message: {}.".format(collision))
+
+    return weak_hash(original_message) == weak_hash(collision)
 
 
 def main():
