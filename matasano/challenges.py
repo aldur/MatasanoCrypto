@@ -1060,6 +1060,116 @@ def fiftythree():
     return weak_hash(original_message) == weak_hash(collision)
 
 
+@challenge
+def fiftyfour():
+    """http://cryptopals.com/sets/7/challenges/54/"""
+    weak_hash = matasano.hash.weak_iterated_hash
+    block_size = 16
+    k = 4
+
+    committed_length = 128  # Will be put in the final block of the hash
+
+    prediction = b'Message in a bot'
+    assert len(prediction) % block_size == 0
+
+    print("Building leaves of the tree...")
+    leaves = {
+        m: weak_hash(m)
+        for m in (matasano.util.bytes_for_int(i, block_size) for i in range(2 ** k))
+    }
+    assert len(leaves) % 2 == 0
+
+    def find_pair_collision(iv_1: bytes, iv_2: bytes) -> typing.Tuple[bytes, bytes, bytes]:
+        """
+        Given two initial vector, find two messages that hashed collide to the same value.
+
+        :param iv_1: The first initial vector.
+        :param iv_2: The second initial vector.
+        :return: The two new message.
+        """
+        for i in range(2 ** block_size):
+            i = matasano.util.bytes_for_int(i, length=block_size)
+            for j in range(2 ** block_size):
+                j = matasano.util.bytes_for_int(j, block_size)
+
+                h = weak_hash(i, iv_1)
+                if h == weak_hash(j, iv_2):
+                    return i, j, h
+
+                h = weak_hash(j, iv_1)
+                if h == weak_hash(i, iv_2):
+                    return j, i, h
+
+        assert False, "Something went wrong while finding collisions."
+
+    tree = []
+    previous_level = []
+    next_level = []
+
+    print("Building level 1 of the tree...")
+    while len(leaves):
+        a, b = leaves.popitem(), leaves.popitem()
+        previous_level += [a, b]
+        a, b, h = find_pair_collision(a[1], b[1])
+        next_level.append(((a, b), h))
+    assert weak_hash(previous_level[0][0] + next_level[0][0][0]) == next_level[0][1]
+
+    assert len(previous_level) % 2 == 0
+    assert len(next_level) % 2 == 0
+    assert len(previous_level) == len(next_level) * 2
+    tree.append(previous_level)
+    tree.append(next_level)
+
+    previous_level = next_level
+    n = 2
+
+    while len(previous_level) >= 2:
+        print("Building level {} of the tree...".format(n))
+        next_level = []
+
+        for i in range(0, len(previous_level), 2):
+            a, b = previous_level[i], previous_level[i + 1]
+            a, b, h = find_pair_collision(a[1], b[1])
+            next_level.append(((a, b), h))
+
+        assert len(previous_level) == len(next_level) * 2
+        tree.append(next_level)
+        previous_level = next_level
+        n += 1
+
+    assert len(tree[-1]) == 1
+
+    glue_blocks_len = committed_length - len(prediction) - (block_size * (len(tree) - 1))
+    assert glue_blocks_len > 0, "Please specify a longer predicted message length."
+
+    committed_length_b = matasano.util.bytes_for_int(committed_length, block_size)
+    print("Generating final padded hash...")
+    # This will be released before the start of the season.
+    predicted_hash = weak_hash(committed_length_b, tree[-1][0][1])
+
+    leaves = {l[1]: i for i, l in enumerate(tree[0])}  # Map hashes to leaf indexes
+    message, h = b'', -1
+
+    while True:
+        glue = matasano.util.random_bytes_range(glue_blocks_len)
+        message = prediction + glue
+        h = weak_hash(message)
+
+        if h in leaves:
+            break
+
+    leaf_index = leaves[h]
+    assert weak_hash(message) == tree[0][leaf_index][1]
+    print("Found colliding leaf index: {}. Traversing tree from leaf to root...".format(leaf_index))
+
+    colliding_message = message
+    for i in range(1, len(tree)):
+        colliding_message += tree[i][leaf_index // (2 ** i)][0][leaf_index // (2 ** (i - 1)) % 2]
+    assert len(colliding_message) == committed_length
+
+    return predicted_hash == weak_hash(committed_length_b, weak_hash(colliding_message))
+
+
 def main():
     """
     Read the argument from the command line,
