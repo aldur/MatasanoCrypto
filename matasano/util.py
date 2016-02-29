@@ -133,6 +133,19 @@ def int_32_lsb(x: int):
     return int(0xFFFFFFFF & x)
 
 
+def ith_bit(x: int, i: int) -> int:
+    """
+    Return the i-th bit of the input parameter.
+    LSB has index 0, MSB has the greatest index (31 for a word).
+
+    :param x: A number.
+    :param i: The bit index.
+    :return: The ith-bit of x.
+    """
+    assert i >= 0  # Do not support negative indexes, ATM
+    return (x >> i) & 0x01
+
+
 def _int_bytes_conversion(
         argument,
         is_big_endian: bool,
@@ -214,6 +227,17 @@ def left_rotate(n: int, b: int) -> int:
     :return: The input after applying rotation.
     """
     return ((n << b) | ((n & 0xffffffff) >> (32 - b))) & 0xffffffff
+
+
+def right_rotate(n: int, b: int) -> int:
+    """
+    Right rotate the input by b.
+
+    :param n: The input.
+    :param b: The rotation factor.
+    :return: The input after applying rotation.
+    """
+    return ((n >> b) | ((n & 0xffffffff) << (32 - b))) & 0xffffffff
 
 
 def bytes_for_int(n: int, length: int=None, byteorder='little') -> bytes:

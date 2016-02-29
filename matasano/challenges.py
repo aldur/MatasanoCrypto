@@ -1170,6 +1170,58 @@ def fiftyfour():
     return predicted_hash == weak_hash(committed_length_b, weak_hash(colliding_message))
 
 
+@challenge
+def fiftyfive():
+    """http://cryptopals.com/sets/7/challenges/55/"""
+    compress = matasano.hash.md4_compress
+
+    ith = matasano.util.ith_bit
+    lr = matasano.util.left_rotate
+    rr = matasano.util.right_rotate
+
+    a_0, b_0, c_0, d_0 = matasano.hash.md4_initial_state
+
+    def _f(_x, _y, _z):
+        return _x & _y | ~_x & _z
+
+    def _s1(_a, _b, _c, _d, k, s, big_x):
+        return matasano.util.left_rotate(_a + _f(_b, _c, _d) + big_x[k], s)
+
+    m = [
+        0x4d7a9c83, 0x56cb927a, 0xb9d5a578, 0x57a7a5ee,
+        0xde748a3c, 0xdcc366b3, 0xb683a020, 0x3b2a5d9f,
+        0xc69d71b3, 0xf9e99198, 0xd79f805e, 0xa63bb2e8,
+        0x45dd8e31, 0x97e31fe5, 0x2794bf08, 0xb9e8c3e9
+    ]
+    print("Original message: {}.".format(m))
+
+    m_b = matasano.util.to_little_endian_unsigned_ints(m)
+    assert len(m_b) == 64
+
+    truth = compress(m_b)
+    assert truth == [0x5f5c1a0d, 0x71b36046, 0x1b5435da, 0x9b0d807a]
+
+    a_1 = _s1(a_0, b_0, c_0, d_0, 0, 3, m)
+    d_1 = _s1(d_0, a_1, b_0, c_0, 1, 7, m)
+
+    d_1_m = d_1 ^ (lr(ith(d_1, 6), 6)) ^ \
+        (lr(ith(d_1, 7) ^ ith(a_1, 7), 7)) ^ \
+        (lr(ith(d_1, 10) ^ ith(a_1, 10), 10))
+
+    collision = m[:]
+    collision[1] = (rr(d_1_m, 7)) - d_0 - _f(a_1, b_0, c_0)
+    print("Colliding message: {}.".format(collision))
+
+    collision_b = matasano.util.to_little_endian_unsigned_ints(m)
+    digest = compress(collision_b)
+    print("Digest: {}.".format(digest))
+
+    # For the moment, I stop here, with the "Single-Step Modification".
+    # In the future, anyway, I may come back to implement the "Multi-Step Modification".
+
+    return collision != m and truth == digest
+
+
 def main():
     """
     Read the argument from the command line,
