@@ -127,12 +127,14 @@ sha1_pad = functools.partial(
     length_to_bytes=_sha1_length_to_bytes
 )
 
+md4_initial_state = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476]
 
-def _md4_compress(block: bytes, state: list=None) -> list:
+
+def md4_compress(block: bytes, state: list=None) -> list:
     """
     The MD4 compression function.
 
-    :param block: The block to be compressed.
+    :param block: The block to be compressed (64 byte).
     :param state: The function internal state.
     :return: The compressed block.
     """
@@ -155,7 +157,7 @@ def _md4_compress(block: bytes, state: list=None) -> list:
         return matasano.util.left_rotate(_a + _h(_b, _c, _d) + big_x[k] + 0x6ed9eba1, s)
 
     if not state:
-        state = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476]
+        state = md4_initial_state
 
     a, b, c, d = h0, h1, h2, h3 = state
 
@@ -227,7 +229,7 @@ The full fledged MD4 function.
 _md4_length_to_bytes = \
     lambda length: matasano.util.to_little_endian_unsigned_longs([length])
 MD4 = _make_md_hash_64(
-    compress=_md4_compress,
+    compress=md4_compress,
     state_to_hash=matasano.util.to_little_endian_unsigned_ints,
     length_to_bytes=_md4_length_to_bytes
 )
