@@ -18,6 +18,7 @@ import matasano.oracle
 import matasano.blocks
 import matasano.stats
 import matasano.prng
+import matasano.stream
 import matasano.util
 import matasano.hash
 import matasano.public
@@ -886,7 +887,7 @@ class AttackerMT19937Stream(Attacker):
         challenge = self.oracle.challenge()
 
         for seed in range(0, 2 ** 16):
-            if (matasano.blocks.mt19937_stream(
+            if (matasano.stream.mt19937_stream(
                     seed,
                     challenge
             ))[-len(self.oracle.known_plaintext):] == self.oracle.known_plaintext:

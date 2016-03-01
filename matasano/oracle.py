@@ -23,6 +23,7 @@ import typing
 import zlib
 
 import matasano.blocks
+import matasano.stream
 import matasano.util
 import matasano.prng
 import matasano.mac
@@ -765,7 +766,7 @@ class OracleMT19937Stream(Oracle):
 
         :return: The encryption of the hidden plaintext.
         """
-        return matasano.blocks.mt19937_stream(
+        return matasano.stream.mt19937_stream(
             self._seed,
             self._plaintext
         )
@@ -1719,7 +1720,7 @@ class OracleCompress(Oracle):
 
         :return: an encryption of the session ID.
         """
-        return matasano.blocks.mt19937_stream(random.randint(0, 2 ** 32 - 1), self._session_id)
+        return matasano.stream.mt19937_stream(random.randint(0, 2 ** 32 - 1), self._session_id)
 
     def guess(self, session_id: bytes) -> bool:
         """

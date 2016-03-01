@@ -104,3 +104,4 @@ class MT19937:
         """
         mt_prng = MT19937(int(time.time()))
         return mt_prng.extract_number() == token
+
