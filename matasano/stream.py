@@ -4,6 +4,7 @@
 """Handle stream operations here."""
 
 import matasano.prng
+from Crypto.Cipher import ARC4
 
 __author__ = 'aldur'
 
@@ -38,3 +39,14 @@ def mt19937_stream(key: int, b: bytes) -> bytes:
         i += 4
 
     return bytes(result)
+
+
+def rc4_stream(key: bytes, b: bytes) -> bytes:
+    """
+    An RC4-based stream encryption.
+
+    :param key: The encryption key.
+    :param b: The buffer to be encrypted.
+    :return: The encrypted buffer.
+    """
+    return ARC4.new(key).encrypt(b)
