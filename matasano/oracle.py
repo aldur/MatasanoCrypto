@@ -1749,3 +1749,50 @@ class OracleCompress(Oracle):
                 matasano.blocks.pkcs_7(zlib.compress(self.parse_request(message)), 16)
             )[0]
         )
+
+
+class OracleRC4Cookie(Oracle):
+
+    """
+    This oracle receives a request,
+    and returns the result of the RC4 encryption
+    of the request and a secret cookie.
+
+    The attacker's goal is to find the cookie.
+    """
+
+    def __init__(self, cookie: bytes):
+        super().__init__()
+        self._cookie = cookie
+        self._guessed = False
+
+    def guess(self, cookie: bytes) -> bool:
+        """
+        Verify whether the attacker has retrieved the cookie.
+
+        :param cookie: The cookie to be verified.
+        :return: Whether the attacker's found the secret cookie.
+        """
+        if self._guessed:
+            raise CheatingException("You can only guess once!")
+        self._guessed = True
+        return cookie == self._cookie
+
+    def experiment(self, request: bytes) -> bytes:
+        """
+        Given a request, return the result of an RC4 call.
+        The seed will be composed by concatenating the request and the secret cookie.
+
+        :param request: Any sequence of bytes.
+        :return: An encryption of the request, suffixed with the hidden cookie.
+        """
+        return matasano.stream.rc4_stream(matasano.util.random_bytes_range(16), request + self._cookie)
+
+    def challenge(self) -> bytes:
+        """
+        Return an encryption of the cookie.
+
+        :return: An encryption of the cookie.
+        """
+        return matasano.stream.rc4_stream(
+            matasano.util.random_bytes_range(16), self._cookie)

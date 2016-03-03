@@ -2006,3 +2006,71 @@ class AttackerCompress(Attacker):
 
             print(self.session_id)
         return self.oracle.guess(self.session_id)
+
+
+class AttackerRC4Cookie(Attacker):
+
+    """
+    Retrieve a hidden cookie from the oracle, by knowing byte bias of the RC4 cipher.
+
+    :param oracle: The oracle to be attacked.
+    """
+
+    def __init__(self, oracle: matasano.oracle.OracleCompress):
+        super().__init__(oracle)
+        self.cookie = None
+
+    def attack(self) -> bool:
+        """
+        We know that the RC4 cipher's output has some fixed offset whose byte values are biased.
+        We'll exploit it in order to find a hidden cookie suffixed by the oracle to every request
+        we make.
+        """
+        challenge = self.oracle.challenge()
+        self.cookie = bytearray([0] * len(challenge))
+
+        # Sorry, this code is really really slow.
+        # I've put it here more as a PoC than as a real attack.
+        # A faster language is definitely advised.
+
+        prefix = b'A' * (len(challenge) // 16)
+        for i in range(0, (len(challenge) // 2) + 1):
+            print("Progress: {}/{}.".format(i, (len(challenge) // 2) + 1))
+            prefix += b'A'
+
+            bias_15 = collections.defaultdict(lambda: 0)
+            bias_31 = collections.defaultdict(lambda: 0)
+
+            for _ in range(2 ** 24):  # should be something around 2 ** 30
+                cipher = self.oracle.experiment(prefix)
+                assert len(cipher) >= 32
+
+                bias_15[cipher[15] ^ 240] += 2
+                bias_15[cipher[15] ^ 0] += 1
+                bias_15[cipher[15] ^ 16] += 1
+
+                bias_31[cipher[31] ^ 224] += 2
+                bias_31[cipher[31] ^ 0] += 1
+                bias_31[cipher[31] ^ 32] += 1
+
+            k = 15 - i - (len(challenge) // 16) - 1
+            if k >= 0:
+                most_biased = sorted(bias_15, key=lambda k: bias_15[k], reverse=True)
+                for b in most_biased:
+                    if chr(b).isalpha():
+                        self.cookie[k] = b
+                else:
+                    self.cookie[k] = most_biased[0]
+
+            k = 31 - i - (len(challenge) // 16) - 1
+            most_biased = sorted(bias_31, key=lambda k: bias_31[k], reverse=True)
+            for b in most_biased:
+                if chr(b).isalpha():
+                    self.cookie[k] = b
+            else:
+                self.cookie[k] = most_biased[0]
+
+        self.cookie = bytes(self.cookie)
+        return self.oracle.guess(self.cookie)
+
+

@@ -1222,6 +1222,20 @@ def fiftyfive():
     return collision != m and truth == digest
 
 
+@challenge
+def fiftysix():
+    """http://cryptopals.com/sets/7/challenges/56/"""
+    oracle = matasano.oracle.OracleRC4Cookie(base64.b64decode(b"QkUgU1VSRSBUTyBEUklOSyBZT1VSIE9WQUxUSU5F"))
+    attacker = matasano.attacker.AttackerRC4Cookie(oracle)
+
+    print("Please wait while retrieving the hidden cookie...")
+    print("Warning: this attack could take a long time.")
+
+    result = attacker.attack()
+    print("Discovered cookie: {}.".format(attacker.cookie))
+    return result
+
+
 def main():
     """
     Read the argument from the command line,
