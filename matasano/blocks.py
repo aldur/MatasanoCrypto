@@ -7,6 +7,7 @@ import math
 
 import matasano.util
 import matasano.prng
+from typing import Tuple
 
 from Crypto.Cipher import AES
 
@@ -292,7 +293,7 @@ def aes_ctr(
         b: bytes,
         nonce: int=0,
         decrypt: bool=False,
-) -> bytes:
+) -> Tuple[bytes, int]:
     """AES CTR mode.
 
     :param key: The cipher key.
